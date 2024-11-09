@@ -2,7 +2,7 @@ using DCPLInterpreterV2.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace DCPLInterpreterV2.Converter;
+namespace DCPLInterpreterV2.Models;
 
 public class DirectiveConverter : JsonConverter
 {

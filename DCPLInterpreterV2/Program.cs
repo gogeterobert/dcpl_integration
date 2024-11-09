@@ -1,5 +1,6 @@
 using DCPLInterpreterV2.Converter;
 using DCPLInterpreterV2.Interfaces;
+using DCPLInterpreterV2.Models;
 using DCPLInterpreterV2.Services;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -11,6 +12,8 @@ builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
         options.SerializerSettings.Converters.Add(new DirectiveConverter());
+        options.SerializerSettings.Converters.Add(new EventConverter());
+        options.SerializerSettings.Converters.Add(new AtomicObjectConverter());
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     });
 

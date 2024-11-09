@@ -40,7 +40,7 @@ public class PowerFrame : IDirective
     
     [JsonConverter(typeof(EventConverter))]
     public Event Action { get; set; }
-    public TransitionEvent Consequence { get; set; }
+    // public TransitionEvent Consequence { get; set; }
     public AtomicObject Alias { get; set; }
 }
 
@@ -63,7 +63,6 @@ public class AtomicObject
     public string Pattern { get; set; }
 }
 
-[JsonConverter(typeof(AtomicParamsConverter))]
 public class AtomicParams
 {
     public AtomicEvent AtomicEvent { get; set; }
@@ -120,8 +119,8 @@ public class ProductionEvent : Event
 
 public class NamingEvent : Event
 {
-    public Object Entity { get; set; }
-    public Object In { get; set; }
+    public string Entity { get; set; }
+    public string In { get; set; }
     public Object Out { get; set; }
 }
 
