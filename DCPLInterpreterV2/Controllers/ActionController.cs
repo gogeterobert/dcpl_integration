@@ -9,12 +9,12 @@ namespace DCPLInterpreterV2.Controllers
     {
 
 
-        [HttpPost]
-        public Schema Act([FromBody] Models.SchemaAction action)
-        {
-            var schema = new Schema { Records = records };
-            _schemas.Add(schema);
-            return schema;
-        }
+        //[HttpPost]
+        //public Schema Act([FromBody] Models.SchemaAction action)
+        //{
+        //    var schema = new Schema { Records = records };
+        //    _schemas.Add(schema);
+        //    return schema;
+        //}
     }
 }
