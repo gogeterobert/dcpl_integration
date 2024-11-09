@@ -3,7 +3,6 @@ using DCPLInterpreterV2.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
-using System.Collections.Generic;
 
 namespace DCPLInterpreterV2.Controllers
 {
@@ -22,8 +21,13 @@ namespace DCPLInterpreterV2.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> Create([FromBody] JToken body)
+        public async Task<IActionResult> Create([FromBody] List<IDirective> directives)
         {
+            if (directives == null)
+            {
+                return BadRequest(new { Errors = new List<string> { "Invalid JSON format. Expected an array of directives." } });
+            }
+
             string schemaUrl = "https://raw.githubusercontent.com/gsileno/DCPLschema/main/DPCLschema.json";
             string schemaJson;
 
@@ -47,16 +51,25 @@ namespace DCPLInterpreterV2.Controllers
                 _logger.LogError(e, "Error parsing schema");
                 return StatusCode(500, "Error parsing schema");
             }
-            
-            IList<string> validationErrors = new List<string>();
 
-            if (!body.IsValid(schema, out validationErrors))
+            // Validate each directive against the schema
+            IList<string> validationErrors = new List<string>();
+            foreach (var directive in directives)
+            {
+                var directiveToken = JToken.FromObject(directive);
+                if (!directiveToken.IsValid(schema, out IList<string> errors))
+                {
+                    validationErrors = validationErrors.Concat(errors).ToList();
+                }
+            }
+
+            if (validationErrors.Any())
             {
                 return BadRequest(new { Errors = validationErrors });
             }
 
-            // Process the valid body
-            return Ok();
+            // Process the valid directives
+            return Ok(directives);
         }
     }
 }
