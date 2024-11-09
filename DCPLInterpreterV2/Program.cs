@@ -1,3 +1,4 @@
+using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,7 +10,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<SchemaService>();
+builder.Services.AddSingleton<ISchemaService, SchemaService>();
 
 var app = builder.Build();
 

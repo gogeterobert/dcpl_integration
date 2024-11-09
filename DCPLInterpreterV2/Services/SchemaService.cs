@@ -5,11 +5,11 @@ namespace DCPLInterpreterV2.Services
 {
     public class SchemaService: ISchemaService
     {
-        private static List<Schema> _schemas = new List<Schema>();
+        private static Schema _schema = new Schema();
     
         public void AddSchema(Schema schema)
         {
-            throw new NotImplementedException();
+            _schema =  schema;
         }
     }
 }

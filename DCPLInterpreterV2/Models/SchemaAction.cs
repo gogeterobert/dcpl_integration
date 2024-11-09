@@ -2,7 +2,7 @@
 
 namespace DCPLInterpreterV2.Models;
 
-public class Action
+public class SchemaAction
 {
     [JsonPropertyName("reference")]
     public string? Reference { get; set; }
