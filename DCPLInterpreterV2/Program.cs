@@ -14,6 +14,7 @@ builder.Services.AddControllers()
         options.SerializerSettings.Converters.Add(new DirectiveConverter());
         options.SerializerSettings.Converters.Add(new EventConverter());
         options.SerializerSettings.Converters.Add(new AtomicObjectConverter());
+        options.SerializerSettings.Converters.Add(new TransitionEventConverter());
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     });
 

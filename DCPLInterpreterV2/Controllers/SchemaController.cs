@@ -53,23 +53,23 @@ namespace DCPLInterpreterV2.Controllers
             }
 
             // Validate each directive against the schema
-            IList<string> validationErrors = new List<string>();
-            foreach (var directive in directives)
-            {
-                var directiveToken = JToken.FromObject(directive);
-                if (!directiveToken.IsValid(schema, out IList<string> errors))
-                {
-                    validationErrors = validationErrors.Concat(errors).ToList();
-                }
-            }
+            // IList<string> validationErrors = new List<string>();
+            // foreach (var directive in directives)
+            // {
+            //     var directiveToken = JToken.FromObject(directive);
+            //     if (!directiveToken.IsValid(schema, out IList<string> errors))
+            //     {
+            //         validationErrors = validationErrors.Concat(errors).ToList();
+            //     }
+            // }
 
-            if (validationErrors.Any())
-            {
-                return BadRequest(new { Errors = validationErrors });
-            }
+            // if (validationErrors.Any())
+            // {
+            //     return BadRequest(new { Errors = validationErrors });
+            // }
 
             // Process the valid directives
-            return Ok(directives);
+            return Ok();
         }
     }
 }
