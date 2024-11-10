@@ -51,5 +51,11 @@ namespace DCPLInterpreterV2.Controllers
         {
             return _schemaService.GetHolders();
         }
+
+        [HttpGet("actions")]
+        public List<string> GetActions()
+        {
+            return _schemaService.GetActions();
+        }
     }
 }

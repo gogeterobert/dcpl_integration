@@ -6,4 +6,5 @@ public interface ISchemaService
 {
     public void AddSchema(List<IDirective> schema);
     List<string> GetHolders();
+    List<string> GetActions();
 }

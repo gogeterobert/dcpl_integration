@@ -91,16 +91,15 @@ public class Object
 
 public abstract class Event
 {
+    public string Reference { get; set; }
 }
 
 public class AtomicEvent : Event
 {
-    public string Reference { get; set; }
 }
 
 public class RefinedEvent : Event
 {
-    public AtomicEvent Reference { get; set; }
     public Refinement Refinement { get; set; }
     public AtomicEvent Alias { get; set; }
 }
