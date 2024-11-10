@@ -5,4 +5,5 @@ namespace DCPLInterpreterV2.Interfaces;
 public interface ISchemaService
 {
     public void AddSchema(List<IDirective> schema);
+    List<string> GetHolders();
 }
