@@ -28,11 +28,12 @@ public class EventConverter : JsonConverter
         }
         else if (jsonObject["plus"] != null || jsonObject["minus"] != null)
         {
-            eventObj = new ProductionEvent();
+            eventObj = new RefinedEvent();
         }
         else if (jsonObject["entity"] != null && (jsonObject["in"] != null || jsonObject["out"] != null))
         {
-            eventObj = new NamingEvent();
+            throw new NotImplementedException();
+            // eventObj = new NamingEvent();
         }
         else if (jsonObject["reference"] != null)
         {

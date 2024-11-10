@@ -71,7 +71,7 @@ public class AtomicParams
 
 public class Refinement
 {
-    public object Type { get; set; }
+    public string Type { get; set; }
 }
 
 public class RefinedObject
@@ -105,17 +105,16 @@ public class RefinedEvent : Event
     public AtomicEvent Alias { get; set; }
 }
 
-public abstract class TransitionEvent : Event
+public class TransitionEvent
 {
+    [JsonConverter(typeof(EventConverter))]
+    public Event Plus { get; set; }
+
+    [JsonConverter(typeof(EventConverter))]
+    public Event Minus { get; set; }
 }
 
-public class ProductionEvent : TransitionEvent
-{
-    public Object Plus { get; set; }
-    public Object Minus { get; set; }
-}
-
-public class NamingEvent : TransitionEvent
+public class NamingEvent
 {
     public string Entity { get; set; }
     public string In { get; set; }

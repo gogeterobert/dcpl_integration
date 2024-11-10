@@ -41,34 +41,8 @@ namespace DCPLInterpreterV2.Controllers
                 return StatusCode(500, "Error fetching schema");
             }
 
-            JSchema schema;
-            try
-            {
-                schema = JSchema.Parse(schemaJson);
-            }
-            catch (JSchemaException e)
-            {
-                _logger.LogError(e, "Error parsing schema");
-                return StatusCode(500, "Error parsing schema");
-            }
+            _schemaService.AddSchema(directives);
 
-            // Validate each directive against the schema
-            // IList<string> validationErrors = new List<string>();
-            // foreach (var directive in directives)
-            // {
-            //     var directiveToken = JToken.FromObject(directive);
-            //     if (!directiveToken.IsValid(schema, out IList<string> errors))
-            //     {
-            //         validationErrors = validationErrors.Concat(errors).ToList();
-            //     }
-            // }
-
-            // if (validationErrors.Any())
-            // {
-            //     return BadRequest(new { Errors = validationErrors });
-            // }
-
-            // Process the valid directives
             return Ok();
         }
     }
