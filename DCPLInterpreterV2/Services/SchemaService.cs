@@ -46,5 +46,19 @@ namespace DCPLInterpreterV2.Services
                 _ => new List<string>()
             }).ToList();
         }
+
+        public NamingEvent GetActionConsequence(string action)
+        {
+            if (_schema == null)
+            {
+                return null;
+            }
+
+            return _schema.SelectMany(directive => directive switch
+            {
+                PowerFrame powerFrame => new List<(string action, NamingEvent namingEvent)> {(powerFrame.Action.Reference, powerFrame.Consequence)},
+                _ => new List<(string action, NamingEvent namingEvent)>()
+            }).FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
+        }
     }
 }

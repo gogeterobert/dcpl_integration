@@ -16,9 +16,9 @@ namespace DCPLInterpreterV2.Controllers
         }
 
         [HttpPost("act")]
-        public void Act([FromBody] HolderAction holderAction)
+        public void Act([FromBody] EntityAction holderAction)
         {
-            var canAct = _actionService.Act(holderAction.Holder, holderAction.Action);
+            var canAct = _actionService.Act(holderAction.Guid, holderAction.Action);
 
             if (canAct)
             {

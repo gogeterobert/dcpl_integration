@@ -23,6 +23,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<ISchemaService, SchemaService>();
+builder.Services.AddSingleton<IEntityService, EntityService>();
 builder.Services.AddTransient<IActionService, ActionService>();
 
 var app = builder.Build();

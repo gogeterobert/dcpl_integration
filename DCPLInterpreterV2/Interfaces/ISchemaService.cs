@@ -8,4 +8,5 @@ public interface ISchemaService
     List<string> GetHolders();
     List<HolderAction> GetHolderActions();
     List<string> GetActions();
+    NamingEvent GetActionConsequence(string action);
 }
