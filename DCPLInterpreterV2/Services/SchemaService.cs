@@ -12,19 +12,24 @@ namespace DCPLInterpreterV2.Services
             _schema = schema;
         }
 
-        public List<string> GetHolders()
+        public List<HolderAction> GetHolderActions()
         {
             if (_schema == null)
             {
-                return new List<string>();
+                return new List<HolderAction>();
             }
             
             return _schema.SelectMany(directive => directive switch
             {
-                DeonticFrame deonticFrame => new List<string> {deonticFrame.Holder},
-                PowerFrame powerFrame => new List<string> {powerFrame.Holder},
-                _ => new List<string>()
+                DeonticFrame deonticFrame => new List<HolderAction> { new HolderAction{ Holder = deonticFrame.Holder, Action = deonticFrame.Action.Reference}},
+                PowerFrame powerFrame => new List<HolderAction> {new HolderAction{ Holder = powerFrame.Holder, Action = powerFrame.Action.Reference}},
+                _ => new List<HolderAction>()
             }).ToList();
+        }
+
+        public List<string> GetHolders()
+        {
+            return GetHolderActions().Select(holderAction => holderAction.Holder).Distinct().ToList();
         }
 
         public List<string> GetActions()
