@@ -8,4 +8,5 @@ public interface IEntityService
     public List<Entity> List();
     public string GetEntityHolder(Guid guid);
     public void UpdateEntityHolder(Guid guid, string holder);
+    public void Add(Entity entity);
 }

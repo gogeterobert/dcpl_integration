@@ -27,6 +27,11 @@ namespace DCPLInterpreterV2.Services
             return entity.Guid;
         }
 
+        public void Add(Entity entity)
+        {
+            _entities.Add(entity);
+        }
+
         public List<Entity> List()
         {
             return _entities;

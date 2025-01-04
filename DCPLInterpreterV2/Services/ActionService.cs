@@ -31,5 +31,11 @@ namespace DCPLInterpreterV2.Services
 
             return canAct;
         }
+
+        public List<string> GetActionsHolders(string action)
+        {
+            var holderActions = _schemaService.GetHolderActions();
+            return holderActions.FindAll(holderAction => holderAction.Action == action).Select(holderAction => holderAction.Holder).ToList();
+        }
     }
 }
