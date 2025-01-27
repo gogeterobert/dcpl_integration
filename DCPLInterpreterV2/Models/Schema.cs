@@ -52,7 +52,7 @@ public class Event
     public string? Reference { get; set; }
 
     // Refined event
-    public Refinement? Refinement { get; set; }
+    public object? Refinement { get; set; }
     public string? Alias { get; set; }
 
     // Naming event

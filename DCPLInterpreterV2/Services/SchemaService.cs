@@ -14,7 +14,7 @@ namespace DCPLInterpreterV2.Services
             _context = context;
         }
     
-        public void AddSchema(List<PowerFrame> schema)
+        public void AddAndReplaceSchema(List<PowerFrame> schema)
         {
             var directiveEntities = schema.Select(directive => new DirectiveEntity
             {
@@ -22,6 +22,7 @@ namespace DCPLInterpreterV2.Services
                 JsonData = JsonConvert.SerializeObject(directive)
             }).ToList();
 
+            _context.Directives.RemoveRange(_context.Directives);
             _context.Directives.AddRange(directiveEntities);
             _context.SaveChanges();
         }

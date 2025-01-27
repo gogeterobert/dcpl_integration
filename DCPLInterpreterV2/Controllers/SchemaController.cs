@@ -21,7 +21,7 @@ namespace DCPLInterpreterV2.Controllers
             _actionService = actionService;
         }
 
-        [HttpPost("create")]
+        [HttpPost("CreateAndReplace")]
         public async Task<IActionResult> Create([FromBody] List<PowerFrame> directives)
         {
             if (directives == null)
@@ -42,7 +42,7 @@ namespace DCPLInterpreterV2.Controllers
                 return StatusCode(500, "Error fetching schema");
             }
 
-            _schemaService.AddSchema(directives);
+            _schemaService.AddAndReplaceSchema(directives);
 
             return Ok();
         }
