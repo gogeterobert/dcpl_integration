@@ -1,15 +1,16 @@
-﻿using DCPLInterpreterV2.Interfaces;
-using DCPLInterpreterV2.Models;
+﻿using DCPLInterpreterV2.Infrastructure;
+using DCPLInterpreterV2.Interfaces;
 
 namespace DCPLInterpreterV2.Services
 {
     public class EntityService: IEntityService
     {
-        private static List<Entity> _entities {get; set;} = new List<Entity>();
-
+        private readonly SchemaDbContext _context;
         private readonly ISchemaService _schemaService;
-        public EntityService(ISchemaService schemaService)
+
+        public EntityService(SchemaDbContext context, ISchemaService schemaService)
         {
+            _context = context;
             _schemaService = schemaService;
         }
 
@@ -22,24 +23,27 @@ namespace DCPLInterpreterV2.Services
                 throw new ArgumentException("Invalid holder");
             }
 
-            var entity = new Entity { Guid = Guid.NewGuid(), Holder = holder };
-            _entities.Add(entity);
-            return entity.Guid;
+            var entity = new Entity { Id = Guid.NewGuid(), Holder = holder };
+            _context.Entities.Add(entity);
+            _context.SaveChanges();
+
+            return entity.Id;
         }
 
         public void Add(Entity entity)
         {
-            _entities.Add(entity);
+            _context.Entities.Add(entity);
+            _context.SaveChanges();
         }
 
         public List<Entity> List()
         {
-            return _entities;
+            return _context.Entities.ToList();
         }
 
         public string GetEntityHolder(Guid guid)
         {
-            var entity = _entities.Find(entity => entity.Guid == guid)?.Holder;
+            var entity = _context.Entities.FirstOrDefault(entity => entity.Id == guid)?.Holder;
 
             if (entity == null)
             {
@@ -51,7 +55,7 @@ namespace DCPLInterpreterV2.Services
 
         public void UpdateEntityHolder(Guid guid, string holder)
         {
-            var entity = _entities.Find(entity => entity.Guid == guid);
+            var entity = _context.Entities.FirstOrDefault(entity => entity.Id == guid);
 
             if (entity == null)
             {

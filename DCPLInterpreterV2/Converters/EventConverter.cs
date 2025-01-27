@@ -16,40 +16,27 @@ public class EventConverter : JsonConverter
     {
         if (reader.TokenType == JsonToken.String)
         {
-            return new AtomicEvent { Reference = (string)reader.Value };
+            return new Event { Reference = (string)reader.Value };
         }
 
         var jsonObject = JObject.Load(reader);
-        Event eventObj;
-
-        if (jsonObject["reference"] != null && jsonObject["refinement"] != null)
-        {
-            eventObj = new RefinedEvent();
-        }
-        else if (jsonObject["plus"] != null || jsonObject["minus"] != null)
-        {
-            eventObj = new RefinedEvent();
-        }
-        else if (jsonObject["entity"] != null && (jsonObject["in"] != null || jsonObject["out"] != null))
-        {
-            throw new NotImplementedException();
-            // eventObj = new NamingEvent();
-        }
-        else if (jsonObject["reference"] != null)
-        {
-            eventObj = new AtomicEvent();
-        }
-        else
-        {
-            throw new JsonSerializationException("Unknown event type");
-        }
-
+        Event eventObj = new Event();
         serializer.Populate(jsonObject.CreateReader(), eventObj);
         return eventObj;
     }
 
     public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
-        throw new NotImplementedException();
+        Event eventObj = (Event)value;
+
+        if (!string.IsNullOrEmpty(eventObj.Reference))
+        {
+            writer.WriteValue(eventObj.Reference);
+        }
+        else
+        {
+            JObject jsonObject = JObject.FromObject(value, serializer);
+            jsonObject.WriteTo(writer);
+        }
     }
 }

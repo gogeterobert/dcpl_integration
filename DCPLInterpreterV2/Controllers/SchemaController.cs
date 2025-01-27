@@ -22,7 +22,7 @@ namespace DCPLInterpreterV2.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> Create([FromBody] List<IDirective> directives)
+        public async Task<IActionResult> Create([FromBody] List<PowerFrame> directives)
         {
             if (directives == null)
             {
@@ -66,8 +66,8 @@ namespace DCPLInterpreterV2.Controllers
             var actions = _schemaService.GetActions();
 
             var sb = new StringBuilder();
+            sb.AppendLine("using DCPLInterpreterV2.Infrastructure;");
             sb.AppendLine("using DCPLInterpreterV2.Interfaces;");
-            sb.AppendLine("using DCPLInterpreterV2.Models;");
             sb.AppendLine("using Microsoft.AspNetCore.Mvc;");
             sb.AppendLine();
             sb.AppendLine("namespace DCPLInterpreterV2.Controllers;");
@@ -110,10 +110,10 @@ namespace DCPLInterpreterV2.Controllers
                 sb.AppendLine($"    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]");
                 sb.AppendLine($"    public IActionResult {holder}Action()");
                 sb.AppendLine("    {");
-                sb.AppendLine($"        var entity = new Entity {{ Guid = Guid.NewGuid(), Holder = \"{holder}\" }};");
+                sb.AppendLine($"        var entity = new Entity {{ Id = Guid.NewGuid(), Holder = \"{holder}\" }};");
                 sb.AppendLine("        _entityService.Add(entity);");
                 sb.AppendLine("        ");
-                sb.AppendLine("        return Ok(entity.Guid);");
+                sb.AppendLine("        return Ok(entity.Id);");
                 sb.AppendLine("    }");
                 sb.AppendLine();
             }

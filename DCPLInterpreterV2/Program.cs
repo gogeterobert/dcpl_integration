@@ -1,8 +1,8 @@
 using DCPLInterpreterV2.Converter;
+using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
-using DCPLInterpreterV2.Models;
 using DCPLInterpreterV2.Services;
-using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,10 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
-        options.SerializerSettings.Converters.Add(new DirectiveConverter());
         options.SerializerSettings.Converters.Add(new EventConverter());
-        options.SerializerSettings.Converters.Add(new AtomicObjectConverter());
-        options.SerializerSettings.Converters.Add(new TransitionEventConverter());
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     });
 
@@ -22,8 +19,11 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<ISchemaService, SchemaService>();
-builder.Services.AddSingleton<IEntityService, EntityService>();
+builder.Services.AddDbContext<SchemaDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddTransient<ISchemaService, SchemaService>();
+builder.Services.AddTransient<IEntityService, EntityService>();
 builder.Services.AddTransient<IActionService, ActionService>();
 
 var app = builder.Build();

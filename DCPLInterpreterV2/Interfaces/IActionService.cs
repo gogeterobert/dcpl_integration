@@ -1,6 +1,4 @@
-﻿using DCPLInterpreterV2.Models;
-
-namespace DCPLInterpreterV2.Interfaces;
+﻿namespace DCPLInterpreterV2.Interfaces;
 
 public interface IActionService
 {

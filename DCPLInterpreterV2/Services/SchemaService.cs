@@ -1,30 +1,39 @@
-﻿using DCPLInterpreterV2.Interfaces;
+﻿using DCPLInterpreterV2.Infrastructure;
+using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
+using Newtonsoft.Json;
 
 namespace DCPLInterpreterV2.Services
 {
     public class SchemaService: ISchemaService
     {
-        private static List<IDirective> _schema { get; set; }
-    
-        public void AddSchema(List<IDirective> schema)
+        private readonly SchemaDbContext _context;
+
+        public SchemaService(SchemaDbContext context)
         {
-            _schema = schema;
+            _context = context;
+        }
+    
+        public void AddSchema(List<PowerFrame> schema)
+        {
+            var directiveEntities = schema.Select(directive => new DirectiveEntity
+            {
+                DirectiveType = directive.GetType().Name,
+                JsonData = JsonConvert.SerializeObject(directive)
+            }).ToList();
+
+            _context.Directives.AddRange(directiveEntities);
+            _context.SaveChanges();
         }
 
         public List<HolderAction> GetHolderActions()
         {
-            if (_schema == null)
-            {
-                return new List<HolderAction>();
-            }
+            var directives = _context.Directives.ToList();
+            var schema = directives.Select(directiveEntity =>
+                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
+            ).ToList();
             
-            return _schema.SelectMany(directive => directive switch
-            {
-                DeonticFrame deonticFrame => new List<HolderAction> { new HolderAction{ Holder = deonticFrame.Holder, Action = deonticFrame.Action.Reference}},
-                PowerFrame powerFrame => new List<HolderAction> {new HolderAction{ Holder = powerFrame.Holder, Action = powerFrame.Action.Reference}},
-                _ => new List<HolderAction>()
-            }).ToList();
+            return schema.SelectMany(directive => new List<HolderAction> {new HolderAction{ Holder = directive.Holder, Action = directive.Action.Reference}}).ToList();
         }
 
         public List<string> GetHolders()
@@ -34,31 +43,22 @@ namespace DCPLInterpreterV2.Services
 
         public List<string> GetActions()
         {
-            if (_schema == null)
-            {
-                return new List<string>();
-            }
+            var directives = _context.Directives.ToList();
+            var schema = directives.Select(directiveEntity =>
+                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
+            ).ToList();
 
-            return _schema.SelectMany(directive => directive switch
-            {
-                DeonticFrame deonticFrame => new List<string> {deonticFrame.Action.Reference},
-                PowerFrame powerFrame => new List<string> {powerFrame.Action.Reference},
-                _ => new List<string>()
-            }).ToList();
+            return schema.SelectMany(powerFrame => new List<string> {powerFrame.Action.Reference}).ToList();
         }
 
-        public NamingEvent GetActionConsequence(string action)
+        public Event GetActionConsequence(string action)
         {
-            if (_schema == null)
-            {
-                return null;
-            }
+            var directives = _context.Directives.ToList();
+            var schema = directives.Select(directiveEntity =>
+                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
+            ).ToList();
 
-            return _schema.SelectMany(directive => directive switch
-            {
-                PowerFrame powerFrame => new List<(string action, NamingEvent namingEvent)> {(powerFrame.Action.Reference, powerFrame.Consequence)},
-                _ => new List<(string action, NamingEvent namingEvent)>()
-            }).FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
+            return schema.SelectMany(powerFrame => new List<(string action, Event namingEvent)> {(powerFrame.Action.Reference, powerFrame.Consequence)}).FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
         }
     }
 }

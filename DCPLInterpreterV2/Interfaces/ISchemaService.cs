@@ -4,9 +4,9 @@ namespace DCPLInterpreterV2.Interfaces;
 
 public interface ISchemaService
 {
-    public void AddSchema(List<IDirective> schema);
+    public void AddSchema(List<PowerFrame> schema);
     List<string> GetHolders();
     List<HolderAction> GetHolderActions();
     List<string> GetActions();
-    NamingEvent GetActionConsequence(string action);
+    Event GetActionConsequence(string action);
 }

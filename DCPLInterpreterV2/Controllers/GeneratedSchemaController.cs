@@ -1,5 +1,5 @@
+using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
-using DCPLInterpreterV2.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DCPLInterpreterV2.Controllers;
@@ -43,20 +43,20 @@ public class GeneratedSchemaController : ControllerBase
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     public IActionResult personAction()
     {
-        var entity = new Entity { Guid = Guid.NewGuid(), Holder = "person" };
+        var entity = new Entity { Id = Guid.NewGuid(), Holder = "person" };
         _entityService.Add(entity);
         
-        return Ok(entity.Guid);
+        return Ok(entity.Id);
     }
 
     [HttpPost("member")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     public IActionResult memberAction()
     {
-        var entity = new Entity { Guid = Guid.NewGuid(), Holder = "member" };
+        var entity = new Entity { Id = Guid.NewGuid(), Holder = "member" };
         _entityService.Add(entity);
         
-        return Ok(entity.Guid);
+        return Ok(entity.Id);
     }
 
 }
