@@ -45,9 +45,9 @@
 
 ## Uploading and using a schema
 
-    The application supports power frames that can be validated using the [DCPL json schema](https://github.com/gsileno/DCPLschema).
+The application supports power frames that can be validated using the [DCPL json schema](https://github.com/gsileno/DCPLschema).
 
-    In order to generate code based on a schema for the computational operationalization:
+In order to generate code based on a schema for the computational operationalization:
 
 1. **Paste the example in the /Schema/CreateAndReplace:**
 
