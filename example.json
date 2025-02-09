@@ -1,0 +1,57 @@
+[
+  {
+    "position": "power",
+    "holder": "person",
+    "action": "#register",
+    "consequence": {
+      "entity": "person",
+      "in": "member"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "member",
+    "action": {
+      "reference": "#request",
+      "refinement": {
+        "item": "book"
+      }
+    },
+    "consequence": {
+      "plus": {
+        "reference": "borrowing",
+        "refinement": {
+          "borrower": "member",
+          "lender": "library",
+          "item": "book"
+        }
+      }
+    }
+  },
+  {
+    "condition": "book",
+    "conclusion": {
+      "compound": "borrowing",
+      "params": [
+        "borrower",
+        "item"
+      ],
+      "content": [
+        {
+          "position": "power",
+          "holder": "library",
+          "action": "#declare_violation",
+          "consequence": {
+            "plus": {
+                "reference": "violating",
+                "refinement": {
+                    "violator": "member"
+                }
+            }
+          }
+        }
+      ]
+    }
+  }
+]
+  
