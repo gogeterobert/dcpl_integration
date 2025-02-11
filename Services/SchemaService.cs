@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace DCPLInterpreterV2.Services
 {
-    public class SchemaService: ISchemaService
+    public class SchemaService : ISchemaService
     {
         private readonly SchemaDbContext _context;
 
@@ -13,7 +13,7 @@ namespace DCPLInterpreterV2.Services
         {
             _context = context;
         }
-    
+
         public void AddAndReplaceSchema(List<PowerFrame> schema)
         {
             var directiveEntities = schema.Select(directive => new DirectiveEntity
@@ -33,8 +33,8 @@ namespace DCPLInterpreterV2.Services
             var schema = directives.Select(directiveEntity =>
                 JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
             ).ToList();
-            
-            return schema.SelectMany(directive => new List<HolderAction> {new HolderAction{ Holder = directive.Holder, Action = directive.Action.Reference}}).ToList();
+
+            return schema.SelectMany(directive => new List<HolderAction> { new HolderAction { Holder = directive.Holder, Action = directive.Action.Reference } }).ToList();
         }
 
         public List<string> GetHolders()
@@ -49,7 +49,7 @@ namespace DCPLInterpreterV2.Services
                 JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
             ).ToList();
 
-            return schema.SelectMany(powerFrame => new List<string> {powerFrame.Action.Reference}).ToList();
+            return schema.SelectMany(powerFrame => new List<string> { powerFrame.Action.Reference }).ToList();
         }
 
         public Event GetActionConsequence(string action)
@@ -59,7 +59,21 @@ namespace DCPLInterpreterV2.Services
                 JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
             ).ToList();
 
-            return schema.SelectMany(powerFrame => new List<(string action, Event namingEvent)> {(powerFrame.Action.Reference, powerFrame.Consequence)}).FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
+            return schema.SelectMany(powerFrame => new List<(string action, Event namingEvent)> { (powerFrame.Action.Reference, powerFrame.Consequence) }).FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
+        }
+
+        public List<Entity> ParseAllEntitiesFromSchema()
+        {
+            var schemaEntities = new List<Entity>();
+            var directives = _context.Directives.ToList();
+            var schema = directives.Select(directiveEntity =>
+                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
+            ).ToList();
+
+            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Id = Guid.NewGuid(), Holder = powerFrame.Holder }).Distinct(new EntityEqualityComparer()).ToList());
+            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Id = Guid.NewGuid(), Holder = powerFrame.Action.Refinement.Item }).Distinct(new EntityEqualityComparer()).ToList());
+
+            return schemaEntities;
         }
     }
 }

@@ -29,19 +29,6 @@ namespace DCPLInterpreterV2.Controllers
                 return BadRequest(new { Errors = new List<string> { "Invalid JSON format. Expected an array of directives." } });
             }
 
-            string schemaUrl = "https://raw.githubusercontent.com/gsileno/DCPLschema/main/DPCLschema.json";
-            string schemaJson;
-
-            try
-            {
-                schemaJson = await _httpClient.GetStringAsync(schemaUrl);
-            }
-            catch (HttpRequestException e)
-            {
-                _logger.LogError(e, "Error fetching schema from URL");
-                return StatusCode(500, "Error fetching schema");
-            }
-
             _schemaService.AddAndReplaceSchema(directives);
 
             return Ok();

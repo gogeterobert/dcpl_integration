@@ -14,7 +14,8 @@
     "action": {
       "reference": "#request",
       "refinement": {
-        "item": "book"
+        "item": "book",
+        "updateEntity": "book.returnDate = currentDate + 7 days"
       }
     },
     "consequence": {
@@ -22,14 +23,13 @@
         "reference": "borrowing",
         "refinement": {
           "borrower": "member",
-          "lender": "library",
-          "item": "book"
+          "item": "book",
         }
       }
     }
   },
   {
-    "condition": "book",
+    "condition": "currentDate > book.returnDate",
     "conclusion": {
       "compound": "borrowing",
       "params": [
@@ -43,15 +43,15 @@
           "action": "#declare_violation",
           "consequence": {
             "plus": {
-                "reference": "violating",
+                "reference": "external",
                 "refinement": {
-                    "violator": "member"
+                    "link": "member"
                 }
             }
           }
         }
       ]
     }
-  }
+  },
 ]
   

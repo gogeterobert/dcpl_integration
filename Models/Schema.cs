@@ -5,6 +5,7 @@ namespace DCPLInterpreterV2.Models;
 
 public class PowerFrame
 {
+    public string? Condition { get; set; }
     public string Position { get; set; }
     public string Holder  { get; set; }
     
@@ -52,11 +53,16 @@ public class Event
     public string? Reference { get; set; }
 
     // Refined event
-    public object? Refinement { get; set; }
+    public Refinement? Refinement { get; set; }
     public string? Alias { get; set; }
 
     // Naming event
     public string? Entity { get; set; }
     public string? In { get; set; }
     public Object? Out { get; set; }
+}
+
+public class Refinement
+{
+    public string? Item { get; set; }
 }
