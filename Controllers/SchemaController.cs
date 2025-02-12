@@ -56,7 +56,7 @@ namespace DCPLInterpreterV2.Controllers
         [HttpPost("generate")]
         public void Generate()
         {
-            var holders = _schemaService.GetHolders();
+            var entities = _schemaService.ParseAllEntitiesFromSchema();
             var actions = _schemaService.GetActions();
 
             var sb = new StringBuilder();
@@ -104,7 +104,7 @@ namespace DCPLInterpreterV2.Controllers
                 sb.AppendLine();
             }
 
-            foreach (var holder in holders)
+            foreach (var holder in entities)
             {
                 sb.AppendLine($"    [HttpPost(\"{holder}\")]");
                 sb.AppendLine($"    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]");

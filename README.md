@@ -60,4 +60,9 @@ This will create a new controller that will be visible after restarting the appl
 ## Questions:
 
 1. How would I tackle object manipulation? ex: assign a value to a property. Through a reference?
-2. 
+note: how does eflint do it? defined as a fact? maybe:
+Fact return-date Identified by book * time
+
+## Notes to myself:
+
+* https://gitlab.com/eflint/eflint-examples
