@@ -63,7 +63,7 @@ This will create a new controller that will be visible after restarting the appl
 note: how does eflint do it? Seems to declare a new object:
 Fact return-date Identified by book * time
 
-2. For now all requests return 200, given that returning 401 would be fobidding
+2. For now all requests return 200, given that returning 401 would be disabled
 
 ## Notes to myself:
 
