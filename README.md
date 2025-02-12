@@ -56,13 +56,3 @@ The schema is stored locally in a SQLite database.
 2. **Generate by hitting /Schema/generate:**
 
 This will create a new controller that will be visible after restarting the application. The controller will then show up in swagger containing actions for instantiating new entities and making actions listed in the schema.
-
-
-
-## Questions
-
-1. Why couldn't plus reference multiple compound frames?
-
-ex: borrow a book, I need to set the date when it needs to be returned as well as reference another frame that handles giving it back with a condition on the return date
-
-Or should these be chained: request book -> borrowing (sets return date) -> borrowed (handles giving back conditioned on return date)
