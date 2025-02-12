@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace DCPLInterpreterV2.Infrastructure
 {
     public class EntityEqualityComparer : IEqualityComparer<Entity>
@@ -15,7 +12,7 @@ namespace DCPLInterpreterV2.Infrastructure
 
         public int GetHashCode(Entity obj)
         {
-            return obj.Holder.GetHashCode();
+            return obj?.Holder?.GetHashCode() ?? 0;
         }
     }
 }

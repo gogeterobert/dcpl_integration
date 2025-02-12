@@ -1,4 +1,5 @@
-﻿using DCPLInterpreterV2.Models;
+﻿using DCPLInterpreterV2.Infrastructure;
+using DCPLInterpreterV2.Models;
 
 namespace DCPLInterpreterV2.Interfaces;
 
@@ -9,4 +10,5 @@ public interface ISchemaService
     List<HolderAction> GetHolderActions();
     List<string> GetActions();
     Event GetActionConsequence(string action);
+    List<string> ParseAllEntitiesFromSchema();
 }

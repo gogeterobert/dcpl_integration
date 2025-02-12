@@ -1,3 +1,4 @@
+using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -46,6 +47,12 @@ namespace DCPLInterpreterV2.Controllers
             return _schemaService.GetActions();
         }
 
+        [HttpGet("entities")]
+        public List<string> GetEntities()
+        {
+            return _schemaService.ParseAllEntitiesFromSchema();
+        }
+
         [HttpPost("generate")]
         public void Generate()
         {
@@ -74,6 +81,12 @@ namespace DCPLInterpreterV2.Controllers
             foreach (var action in actions)
             {
                 var consequence = _schemaService.GetActionConsequence(action);
+
+                if (consequence is null)
+                {
+                    continue;
+                }
+
                 var actionHolders = _actionService.GetActionsHolders(action);
                 var arrayDeclaration = $"var actionHoldersArray = new string[] {{ {string.Join(", ", actionHolders.Select(s => $"\"{s}\""))} }};";
                 var actionName = action.TrimStart('#');

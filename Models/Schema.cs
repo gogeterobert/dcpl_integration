@@ -6,15 +6,16 @@ namespace DCPLInterpreterV2.Models;
 public class PowerFrame
 {
     public string? Condition { get; set; }
-    public string Position { get; set; }
-    public string Holder  { get; set; }
+    public string? Position { get; set; }
+    public string? Holder  { get; set; }
     
     
     [JsonConverter(typeof(EventConverter))]
-    public Event Action { get; set; }
+    public Event? Action { get; set; }
 
     [JsonConverter(typeof(EventConverter))]
-    public Event Consequence { get; set; }
+    public Event? Consequence { get; set; }
+    public CompoundFrame? Conclusion { get; set; }
 }
 
 public class ExternalExpression
@@ -28,9 +29,11 @@ public class AtomicObject
     public string Pattern { get; set; }
 }
 
-public class Refinement
+public class CompoundFrame
 {
-    public string? Type { get; set; }
+    public string Compound { get; set; } = string.Empty;
+    public List<string> Params = new List<string>();
+    public List<PowerFrame> Content = new List<PowerFrame>();
 }
 
 public class RefinedObject
@@ -65,4 +68,5 @@ public class Event
 public class Refinement
 {
     public string? Item { get; set; }
+    public string? Type { get; set; }
 }

@@ -56,3 +56,8 @@ The schema is stored locally in a SQLite database.
 2. **Generate by hitting /Schema/generate:**
 
 This will create a new controller that will be visible after restarting the application. The controller will then show up in swagger containing actions for instantiating new entities and making actions listed in the schema.
+
+## Questions:
+
+1. How would I tackle object manipulation? ex: assign a value to a property. Through a reference?
+2. 
