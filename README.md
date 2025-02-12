@@ -59,8 +59,8 @@ This will create a new controller that will be visible after restarting the appl
 
 ## Questions:
 
-1. How would I tackle object manipulation? ex: assign a value to a property. Through a reference?
-note: how does eflint do it? defined as a fact? maybe:
+1. How would I tackle modeling the change of state for objects? ex: assign a value to a property. Through a reference?
+note: how does eflint do it? Seems to declare a new object:
 Fact return-date Identified by book * time
 
 2. For now all requests return 200, given that returning 401 would be fobidding
