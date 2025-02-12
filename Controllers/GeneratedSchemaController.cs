@@ -39,6 +39,18 @@ public class GeneratedSchemaController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("declare_violation")]
+    public IActionResult declare_violationAction([FromBody] Guid guid)
+    {
+        var entityHolder = _entityService.GetEntityHolder(guid);
+        var actionHoldersArray = new string[] { "library" };
+        if (!actionHoldersArray.Contains(entityHolder))
+            return Ok();
+        
+        _entityService.UpdateEntityHolder(guid, "");
+        return Ok();
+    }
+
     [HttpPost("person")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     public IActionResult personAction()
@@ -54,6 +66,26 @@ public class GeneratedSchemaController : ControllerBase
     public IActionResult memberAction()
     {
         var entity = new Entity { Id = Guid.NewGuid(), Holder = "member" };
+        _entityService.Add(entity);
+        
+        return Ok(entity.Id);
+    }
+
+    [HttpPost("library")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    public IActionResult libraryAction()
+    {
+        var entity = new Entity { Id = Guid.NewGuid(), Holder = "library" };
+        _entityService.Add(entity);
+        
+        return Ok(entity.Id);
+    }
+
+    [HttpPost("book")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    public IActionResult bookAction()
+    {
+        var entity = new Entity { Id = Guid.NewGuid(), Holder = "book" };
         _entityService.Add(entity);
         
         return Ok(entity.Id);

@@ -63,6 +63,8 @@ This will create a new controller that will be visible after restarting the appl
 note: how does eflint do it? defined as a fact? maybe:
 Fact return-date Identified by book * time
 
+2. For now all requests return 200, given that returning 401 would be fobidding
+
 ## Notes to myself:
 
 * https://gitlab.com/eflint/eflint-examples

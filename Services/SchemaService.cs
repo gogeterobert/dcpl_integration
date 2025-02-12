@@ -35,7 +35,27 @@ namespace DCPLInterpreterV2.Services
                 JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
             ).ToList();
 
-            return schema.SelectMany(directive => new List<HolderAction> { new HolderAction { Holder = directive.Holder, Action = directive.Action?.Reference ?? string.Empty } }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
+            var powerActions = schema.SelectMany(powerFrame => new List<HolderAction>
+                {
+                    new HolderAction {
+                        Holder = powerFrame?.Holder ?? string.Empty,
+                        Action = powerFrame?.Action?.Reference ?? string.Empty,
+                        Consequence = powerFrame?.Consequence }
+                }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
+
+            powerActions.AddRange(schema
+               .SelectMany(powerFrame => powerFrame?.Conclusion?.Content ?? new List<PowerFrame>())
+               .SelectMany(pf => new List<HolderAction>
+               {
+                    new HolderAction {
+                        Holder = pf?.Holder ?? string.Empty,
+                        Action = pf?.Action?.Reference ?? string.Empty,
+                        Consequence = pf?.Consequence }
+               })
+               .Where(a => !string.IsNullOrEmpty(a.Action))
+               .ToList());
+
+            return powerActions;
         }
 
         public List<string> GetHolders()
@@ -45,34 +65,12 @@ namespace DCPLInterpreterV2.Services
 
         public List<string> GetActions()
         {
-            var directives = _context.Directives.ToList();
-            var schema = directives.Select(directiveEntity =>
-                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
-            ).ToList();
-
-            var powerActions = schema.SelectMany(powerFrame => new List<string>
-                {
-                    powerFrame?.Action?.Reference ?? string.Empty,
-                }).Where(a => !string.IsNullOrEmpty(a)).ToList();
-             powerActions.AddRange(schema
-                .SelectMany(powerFrame => powerFrame?.Conclusion?.Content ?? new List<PowerFrame>())
-                .SelectMany(pf => pf.Action?.Reference != null ? new List<string> { pf.Action.Reference } : new List<string>())
-                .Where(a => !string.IsNullOrEmpty(a))
-                .ToList());
-
-            return powerActions;
+            return GetHolderActions().Select(holderAction => holderAction.Action).Distinct().ToList();
         }
 
         public Event GetActionConsequence(string action)
         {
-            var directives = _context.Directives.ToList();
-            var schema = directives.Select(directiveEntity =>
-                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
-            ).ToList();
-
-            return schema.SelectMany(powerFrame => new List<(string action, Event namingEvent)> { (powerFrame?.Action?.Reference, powerFrame?.Consequence) })
-                .Where(t => !string.IsNullOrEmpty(t.action) && t.namingEvent is not null)
-                .FirstOrDefault(namingEvent => namingEvent.action == action).namingEvent;
+            return GetHolderActions().FirstOrDefault(holderAction => holderAction.Action == action)?.Consequence;
         }
 
         public List<string> ParseAllEntitiesFromSchema()
@@ -83,10 +81,8 @@ namespace DCPLInterpreterV2.Services
                 JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
             ).ToList();
 
-            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Id = Guid.NewGuid(), Holder = powerFrame.Holder })
-                .Where(e => !string.IsNullOrEmpty(e.Holder))
-                .Distinct(new EntityEqualityComparer()).ToList());
-            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Id = Guid.NewGuid(), Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
+            schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
+            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
                 .Where(e => !string.IsNullOrEmpty(e.Holder))
                 .Distinct(new EntityEqualityComparer()).ToList());
 
