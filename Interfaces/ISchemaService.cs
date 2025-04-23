@@ -11,4 +11,5 @@ public interface ISchemaService
     List<string> GetActions();
     Event GetActionConsequence(string action);
     List<string> ParseAllEntitiesFromSchema();
+    string GenerateFromTemplate(string projectName);
 }

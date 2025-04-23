@@ -11,16 +11,11 @@ namespace DCPLInterpreterV2.Controllers
     [Route("[controller]")]
     public class SchemaController : ControllerBase
     {
-        private readonly ILogger<SchemaController> _logger;
         private readonly ISchemaService _schemaService;
-        private readonly IActionService _actionService;
-        private static readonly HttpClient _httpClient = new HttpClient();
 
-        public SchemaController(ILogger<SchemaController> logger, ISchemaService schemaService, IActionService actionService)
+        public SchemaController(ISchemaService schemaService)
         {
-            _logger = logger;
             _schemaService = schemaService;
-            _actionService = actionService;
         }
 
         [HttpPost("CreateAndReplace")]
@@ -57,39 +52,7 @@ namespace DCPLInterpreterV2.Controllers
         [HttpPost("generate")]
         public void Generate([FromBody] NewProject newProject)
         {
-            if (newProject == null || string.IsNullOrWhiteSpace(newProject.Name))
-            {
-                throw new ArgumentException("Invalid project details. 'Name' is required.");
-            }
-
-            var projectPath = Path.Combine(Directory.GetCurrentDirectory() ?? "", "compiled_solution", newProject.Name);
-
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"new ca-sln -cf None --database sqlite -o {projectPath}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using (var process = new Process { StartInfo = processStartInfo })
-            {
-                process.Start();
-
-                var output = process.StandardOutput.ReadToEnd();
-                var error = process.StandardError.ReadToEnd();
-
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    throw new InvalidOperationException($"Error generating project: {error}");
-                }
-
-                _logger.LogInformation($"Project generated successfully at {projectPath}: {output}");
-            }
+            var projectPath = _schemaService.GenerateFromTemplate(newProject.Name);
         }
     }
 }

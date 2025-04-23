@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
@@ -9,10 +10,12 @@ namespace DCPLInterpreterV2.Services
     public class SchemaService : ISchemaService
     {
         private readonly SchemaDbContext _context;
+        private readonly ILogger<SchemaService> _logger;
 
-        public SchemaService(SchemaDbContext context)
+        public SchemaService(SchemaDbContext context, ILogger<SchemaService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public void AddAndReplaceSchema(List<PowerFrame> schema)
@@ -87,6 +90,45 @@ namespace DCPLInterpreterV2.Services
                 .Distinct(new EntityEqualityComparer()).ToList());
 
             return schemaEntities.Select(e => e.Holder).ToList();
+        }
+
+        public string GenerateFromTemplate(string projectName)
+        {
+            if (projectName == null || string.IsNullOrWhiteSpace(projectName))
+            {
+                throw new ArgumentException("Invalid project details. 'Name' is required.");
+            }
+
+            var projectPath = Path.Combine(Directory.GetCurrentDirectory() ?? "", "compiled_solution", projectName);
+
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"new ca-sln -cf None --database sqlite -o {projectPath}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using (var process = new Process { StartInfo = processStartInfo })
+            {
+                process.Start();
+
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Error generating project: {error}");
+                }
+
+                _logger.LogInformation($"Project generated successfully at {projectPath}: {output}");
+            }
+
+            return projectPath;
         }
     }
 }
