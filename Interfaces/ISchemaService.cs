@@ -12,4 +12,5 @@ public interface ISchemaService
     Event GetActionConsequence(string action);
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
+    void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
 }

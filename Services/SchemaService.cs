@@ -46,17 +46,17 @@ namespace DCPLInterpreterV2.Services
                         Consequence = powerFrame?.Consequence }
                 }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
 
-            powerActions.AddRange(schema
-               .SelectMany(powerFrame => powerFrame?.Conclusion?.Content ?? new List<PowerFrame>())
-               .SelectMany(pf => new List<HolderAction>
-               {
-                    new HolderAction {
-                        Holder = pf?.Holder ?? string.Empty,
-                        Action = pf?.Action?.Reference ?? string.Empty,
-                        Consequence = pf?.Consequence }
-               })
-               .Where(a => !string.IsNullOrEmpty(a.Action))
-               .ToList());
+            // powerActions.AddRange(schema
+            //    .SelectMany(powerFrame => powerFrame?.Conclusion?.Content ?? new List<PowerFrame>())
+            //    .SelectMany(pf => new List<HolderAction>
+            //    {
+            //         new HolderAction {
+            //             Holder = pf?.Holder ?? string.Empty,
+            //             Action = pf?.Action?.Reference ?? string.Empty,
+            //             Consequence = pf?.Consequence }
+            //    })
+            //    .Where(a => !string.IsNullOrEmpty(a.Action))
+            //    .ToList());
 
             return powerActions;
         }
@@ -85,9 +85,9 @@ namespace DCPLInterpreterV2.Services
             ).ToList();
 
             schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
-            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
-                .Where(e => !string.IsNullOrEmpty(e.Holder))
-                .Distinct(new EntityEqualityComparer()).ToList());
+            // schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
+            //     .Where(e => !string.IsNullOrEmpty(e.Holder))
+            //     .Distinct(new EntityEqualityComparer()).ToList());
 
             return schemaEntities.Select(e => e.Holder).ToList();
         }
@@ -99,7 +99,8 @@ namespace DCPLInterpreterV2.Services
                 throw new ArgumentException("Invalid project details. 'Name' is required.");
             }
 
-            var projectPath = Path.Combine(Directory.GetCurrentDirectory() ?? "", "compiled_solution", projectName);
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var projectPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName);
 
             var processStartInfo = new ProcessStartInfo
             {
@@ -129,6 +130,27 @@ namespace DCPLInterpreterV2.Services
             }
 
             return projectPath;
+        }
+
+        public void CreateNewEntityInGeneratedSolution(string entityName, string projectName)
+        {
+            if (string.IsNullOrWhiteSpace(entityName) || string.IsNullOrWhiteSpace(projectName))
+                throw new ArgumentException("Entity name and project name must be provided.");
+
+            // Ensure entity name is valid C# identifier
+            var validEntityName = string.Concat(entityName.Where(char.IsLetterOrDigit));
+            if (string.IsNullOrWhiteSpace(validEntityName))
+                throw new ArgumentException("Entity name must contain at least one letter or digit.");
+
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var entitiesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Domain", "Entities");
+            Directory.CreateDirectory(entitiesPath);
+
+            var entityFilePath = Path.Combine(entitiesPath, $"{validEntityName}.cs");
+
+            var entityClass = $@"using System;\n\nnamespace {projectName}.Domain.Entities\n{{\n    public class {validEntityName}\n    {{\n        public Guid Id {{ get; set; }}\n        public string Name {{ get; set; }}\n    }}\n}}\n";
+
+            File.WriteAllText(entityFilePath, entityClass);
         }
     }
 }

@@ -1,57 +1,12 @@
-[
-  {
-    "position": "power",
-    "holder": "person",
-    "action": "#register",
-    "consequence": {
-      "entity": "person",
-      "in": "member"
-    }
-  },
-  {
-    "position": "power",
-    "holder": "member",
-    "action": {
-      "reference": "#request",
-      "refinement": {
-        "item": "book",
-        "updateEntity": "book.returnDate = currentDate + 7 days"
+{
+  "condition": "Library is open",
+  "conclusion": {
+      "position": "power",
+      "holder": "person",
+      "action": "#register",
+      "consequence": {
+        "entity": "person",
+        "in": "member"
       }
-    },
-    "consequence": {
-      "plus": {
-        "reference": "borrowing",
-        "refinement": {
-          "borrower": "member",
-          "item": "book",
-        }
-      }
-    }
-  },
-  {
-    "condition": "currentDate > book.returnDate",
-    "conclusion": {
-      "compound": "borrowing",
-      "params": [
-        "borrower",
-        "item"
-      ],
-      "content": [
-        {
-          "position": "power",
-          "holder": "library",
-          "action": "#declare_violation",
-          "consequence": {
-            "plus": {
-                "reference": "external",
-                "refinement": {
-                    "link": "member"
-                }
-            }
-          }
-        }
-      ]
-    }
-  },
-]
-  
+  }
+}
