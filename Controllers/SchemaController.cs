@@ -59,6 +59,14 @@ namespace DCPLInterpreterV2.Controllers
             {
                 _schemaService.CreateNewEntityInGeneratedSolution(entity!, newProject.Name);
             }
+
+            var actions = _schemaService.GetActions();
+
+            foreach (var action in actions)
+            {
+                var consequence = _schemaService.GetActionConsequence(action);
+                _schemaService.CreateGenericControllerAndCommand(action, newProject.Name);
+            }
         }
     }
 }

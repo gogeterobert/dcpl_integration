@@ -13,4 +13,5 @@ public interface ISchemaService
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
+    void CreateGenericControllerAndCommand(string entityName, string projectName);
 }
