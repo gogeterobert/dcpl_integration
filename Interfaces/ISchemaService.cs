@@ -13,5 +13,8 @@ public interface ISchemaService
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
-    void CreateGenericControllerAndCommand(string entityName, string projectName);
+    void CreateGenericControllersAndCommands(List<string> entityNames, string projectName);
+    void AddEfMigration(string projectName, string migrationName);
+    void ApplyEfMigrations(string projectName);
+    void RemoveDevelopmentIfElse(string projectName);
 }

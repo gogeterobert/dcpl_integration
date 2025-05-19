@@ -220,132 +220,6 @@ namespace DCPLInterpreterV2.Services
             }
         }
 
-        public void CreateGenericControllerAndCommand(string entityName, string projectName)
-        {
-            var validEntityName = string.Concat(entityName.Where(char.IsLetterOrDigit));
-            if (string.IsNullOrWhiteSpace(validEntityName))
-                throw new ArgumentException("Entity name must contain at least one letter or digit.");
-            validEntityName = char.ToUpper(validEntityName[0]) + validEntityName.Substring(1);
-
-            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
-
-            // 1. Create Controller
-            var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "WebUI", "Controllers");
-            Directory.CreateDirectory(controllersPath);
-            var controllerFilePath = Path.Combine(controllersPath, $"{validEntityName}Controller.cs");
-            var controllerClass = $@"using MediatR;
-using Microsoft.AspNetCore.Mvc;
-using {projectName}.Application.{validEntityName}.Commands;
-
-namespace {projectName}.WebUI.Controllers
-{{
-    [ApiController]
-    [Route(""api/[controller]"")]
-    public class {validEntityName}Controller : ControllerBase
-    {{
-        private readonly IMediator _mediator;
-        public {validEntityName}Controller(IMediator mediator) => _mediator = mediator;
-
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Create{validEntityName}Command command)
-        {{
-            var result = await _mediator.Send(command);
-            return Ok(result);
-        }}
-    }}
-}}";
-            File.WriteAllText(controllerFilePath, controllerClass);
-
-            // 2. Create MediatR Command and Handler
-            var commandsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", validEntityName, "Commands");
-            Directory.CreateDirectory(commandsPath);
-            var commandFilePath = Path.Combine(commandsPath, $"Create{validEntityName}Command.cs");
-            var handlerFilePath = Path.Combine(commandsPath, $"Create{validEntityName}CommandHandler.cs");
-
-            var commandClass = $@"using MediatR;
-
-namespace {projectName}.Application.{validEntityName}.Commands
-{{
-    public record Create{validEntityName}Command(string Name) : IRequest<Guid>;
-}}";
-            File.WriteAllText(commandFilePath, commandClass);
-
-            var handlerClass = $@"using MediatR;
-using {projectName}.Application.Interfaces;
-
-namespace {projectName}.Application.{validEntityName}.Commands
-{{
-    public class Create{validEntityName}CommandHandler : IRequestHandler<Create{validEntityName}Command, Guid>
-    {{
-        private readonly I{validEntityName}Service _service;
-        public Create{validEntityName}CommandHandler(I{validEntityName}Service service) => _service = service;
-
-        public async Task<Guid> Handle(Create{validEntityName}Command request, CancellationToken cancellationToken)
-        {{
-            return await _service.Create{validEntityName}Async(request.Name);
-        }}
-    }}
-}}";
-            File.WriteAllText(handlerFilePath, handlerClass);
-
-            // 3. Add interface to Application layer
-            var appInterfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Interfaces");
-            Directory.CreateDirectory(appInterfacesPath);
-            var interfaceFilePath = Path.Combine(appInterfacesPath, $"I{validEntityName}Service.cs");
-            var interfaceClass = $@"using System.Threading.Tasks;
-
-namespace {projectName}.Application.Interfaces
-{{
-    public interface I{validEntityName}Service
-    {{
-        Task<Guid> Create{validEntityName}Async(string name);
-    }}
-}}";
-            File.WriteAllText(interfaceFilePath, interfaceClass);
-
-            // 4. Add empty implementation to Infrastructure layer
-            var infraPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure");
-            Directory.CreateDirectory(infraPath);
-            var infraImplPath = Path.Combine(infraPath, $"{validEntityName}Service.cs");
-            var infraImplClass = $@"using System;
-using System.Threading.Tasks;
-using {projectName}.Application.Interfaces;
-
-namespace {projectName}.Infrastructure
-{{
-    public class {validEntityName}Service : I{validEntityName}Service
-    {{
-        public Task<Guid> Create{validEntityName}Async(string name)
-        {{
-            // TODO: Implement logic
-            return Task.FromResult(Guid.NewGuid());
-        }}
-    }}
-}}";
-            File.WriteAllText(infraImplPath, infraImplClass);
-
-            // 5. Register service in Infrastructure/DependencyInjection
-            var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
-            if (File.Exists(diPath))
-            {
-                var diText = File.ReadAllText(diPath);
-                var registration = $"services.AddScoped<I{validEntityName}Service, {validEntityName}Service>();";
-                if (!diText.Contains(registration))
-                {
-                    var lines = diText.Split('\n').ToList();
-                    int insertIndex = lines.FindLastIndex(l => l.Contains("IServiceCollection services"));
-                    if (insertIndex != -1)
-                    {
-                        // Insert after the method signature
-                        while (insertIndex < lines.Count && !lines[insertIndex].Contains("{") && !lines[insertIndex].Contains("=>")) insertIndex++;
-                        insertIndex++;
-                        lines.Insert(insertIndex, "            " + registration);
-                        File.WriteAllText(diPath, string.Join("\n", lines));
-                    }
-                }
-            }
-        }
-
         public void CreateGenericControllersAndCommands(List<string> entityNames, string projectName)
         {
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
@@ -475,6 +349,110 @@ namespace {projectName}.Infrastructure
             {
                 File.WriteAllText(diPath, string.Join("\n", diLines));
             }
+
+            // Ensure correct usings in DependencyInjection.cs
+            if (File.Exists(diPath))
+            {
+                var diTextCurrent = File.ReadAllText(diPath);
+                var usingApp = $"using {projectName}.Application.Interfaces;";
+                var usingInfra = $"using {projectName}.Infrastructure;";
+                var updated = false;
+                if (!diTextCurrent.Contains(usingApp)) {
+                    diTextCurrent = usingApp + "\n" + diTextCurrent;
+                    updated = true;
+                }
+                if (!diTextCurrent.Contains(usingInfra)) {
+                    diTextCurrent = usingInfra + "\n" + diTextCurrent;
+                    updated = true;
+                }
+                if (updated) File.WriteAllText(diPath, diTextCurrent);
+            }
+        }
+
+        public void AddEfMigration(string projectName, string migrationName)
+        {
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var solutionRoot = Path.Combine(parentDir ?? "", "compiled_solution", projectName);
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"ef migrations add {migrationName} --project \"./src/Infrastructure\" --startup-project \"./src/Web\"",
+                WorkingDirectory = solutionRoot,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using (var process = new Process { StartInfo = startInfo })
+            {
+                process.Start();
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                if (process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Error running ef migrations add: {error}");
+                }
+                _logger.LogInformation($"Migration added: {output}");
+            }
+        }
+
+        public void ApplyEfMigrations(string projectName)
+        {
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var solutionRoot = Path.Combine(parentDir ?? "", "compiled_solution", projectName);
+            var infrastructureProj = Path.Combine("src", "Infrastructure", $"{projectName}.Infrastructure.csproj");
+            var webUiProj = Path.Combine("src", "WebUI", $"{projectName}.WebUI.csproj");
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"ef database update --project \"./src/Infrastructure\" --startup-project \"./src/Web\"",
+                WorkingDirectory = solutionRoot,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using (var process = new Process { StartInfo = startInfo })
+            {
+                process.Start();
+                var output = process.StandardOutput.ReadToEnd();
+                var error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                if (process.ExitCode != 0)
+                {
+                    throw new InvalidOperationException($"Error running ef database update: {error}");
+                }
+                _logger.LogInformation($"Database updated: {output}");
+            }
+        }
+
+        public void RemoveDevelopmentIfElse(string projectName)
+        {
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var programPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Program.cs");
+            if (!File.Exists(programPath))
+                return;
+
+            var lines = File.ReadAllLines(programPath).ToList();
+            var newLines = new List<string>();
+            int i = 0;
+            while (i < lines.Count)
+            {
+                if (lines[i].Contains("if") && lines[i].Contains("app.Environment.IsDevelopment()"))
+                {
+                    // Skip exactly 9 lines (the if block and its contents)
+                    i += 9;
+                }
+                else
+                {
+                    newLines.Add(lines[i]);
+                    i++;
+                }
+            }
+            File.WriteAllLines(programPath, newLines);
         }
     }
 }

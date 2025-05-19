@@ -62,11 +62,12 @@ namespace DCPLInterpreterV2.Controllers
 
             var actions = _schemaService.GetActions();
 
-            foreach (var action in actions)
-            {
-                var consequence = _schemaService.GetActionConsequence(action);
-                _schemaService.CreateGenericControllerAndCommand(action, newProject.Name);
-            }
+            _schemaService.CreateGenericControllersAndCommands(actions, newProject.Name);
+            // Add migration and apply it
+            
+            _schemaService.RemoveDevelopmentIfElse(newProject.Name);
+            _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");
+            _schemaService.ApplyEfMigrations(newProject.Name);
         }
     }
 }
