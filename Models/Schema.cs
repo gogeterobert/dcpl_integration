@@ -15,7 +15,7 @@ public class PowerFrame
 
     [JsonConverter(typeof(EventConverter))]
     public Event? Consequence { get; set; }
-    public CompoundFrame? Conclusion { get; set; }
+    public PowerFrame? Conclusion { get; set; }
 }
 
 public class ExternalExpression
