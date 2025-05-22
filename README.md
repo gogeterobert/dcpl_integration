@@ -56,15 +56,3 @@ The schema is stored locally in a SQLite database.
 2. **Generate by hitting /Schema/generate:**
 
 This will create a new controller that will be visible after restarting the application. The controller will then show up in swagger containing actions for instantiating new entities and making actions listed in the schema.
-
-## Questions:
-
-1. How would I tackle modeling the change of state for objects? ex: assign a value to a property. Through a reference?
-note: how does eflint do it? Seems to declare a new object:
-Fact return-date Identified by book * time
-
-2. For now all requests return 200, given that returning 401 would be disabled
-
-## Notes to myself:
-
-* https://gitlab.com/eflint/eflint-examples
