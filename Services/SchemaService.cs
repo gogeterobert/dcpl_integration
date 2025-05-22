@@ -220,7 +220,7 @@ namespace DCPLInterpreterV2.Services
             }
         }
 
-        private void CreateController(string validActionName, string projectName, string? parentDir)
+        private void CreateController(string validHolderName, string validActionName, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
         {
             var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Controllers");
             Directory.CreateDirectory(controllersPath);
@@ -233,10 +233,10 @@ namespace {projectName}.Web.Controllers
 {{
     [ApiController]
     [Route(""api/{validActionName}"")]
-    public class {validActionName}Controller : ControllerBase
+    public class {validHolderName}Controller : ControllerBase
     {{
         private readonly IMediator _mediator;
-        public {validActionName}Controller(IMediator mediator) => _mediator = mediator;
+        public {validHolderName}Controller(IMediator mediator) => _mediator = mediator;
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] Create{validActionName}Command command)
@@ -247,6 +247,11 @@ namespace {projectName}.Web.Controllers
     }}
 }}";
             File.WriteAllText(controllerFilePath, controllerClass);
+
+            CreateMediatRCommandAndHandler(validActionName, projectName, parentDir);
+            CreateApplicationInterface(validActionName, projectName, parentDir);
+            CreateInfrastructureImplementation(validActionName, projectName, parentDir);
+            RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
         }
 
         private void CreateMediatRCommandAndHandler(string validActionName, string projectName, string? parentDir)
@@ -357,7 +362,7 @@ namespace {projectName}.Infrastructure
             }
         }
 
-        public void CreateGenericControllersAndCommands(List<string> actions, string projectName)
+        public void CreateGenericControllersAndCommands(List<HolderAction> actionHolders, string projectName)
         {
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
             var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
@@ -371,19 +376,18 @@ namespace {projectName}.Infrastructure
                 addInfraIndex++;
             }
 
-            foreach (var actionName in actions)
+            foreach (var actionHolder in actionHolders)
             {
-                var validActionName = string.Concat(actionName.Where(char.IsLetterOrDigit));
+                var validHolderName = string.Concat(actionHolder.Holder.Where(char.IsLetterOrDigit));
+                var validActionName = string.Concat(actionHolder.Action.Where(char.IsLetterOrDigit));
                 if (string.IsNullOrWhiteSpace(validActionName))
                     continue;
+                if (string.IsNullOrWhiteSpace(validHolderName))
+                    continue;
                 validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
+                validHolderName = char.ToUpper(validHolderName[0]) + validHolderName.Substring(1);
 
-
-                CreateController(validActionName, projectName, parentDir);
-                CreateMediatRCommandAndHandler(validActionName, projectName, parentDir);
-                CreateApplicationInterface(validActionName, projectName, parentDir);
-                CreateInfrastructureImplementation(validActionName, projectName, parentDir);
-                RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
+                CreateController(validHolderName, validActionName, projectName, parentDir, diLines, ref addInfraIndex, diPath);
             }
 
             DeleteOldWebEndpoints(projectName);

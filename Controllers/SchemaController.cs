@@ -60,9 +60,9 @@ namespace DCPLInterpreterV2.Controllers
                 _schemaService.CreateNewEntityInGeneratedSolution(entity!, newProject.Name);
             }
 
-            var actions = _schemaService.GetActions();
+            var actionHolders = _schemaService.GetHolderActions();
 
-            _schemaService.CreateGenericControllersAndCommands(actions, newProject.Name);
+            _schemaService.CreateGenericControllersAndCommands(actionHolders, newProject.Name);
             // Add migration and apply it
             
             _schemaService.RemoveDevelopmentIfElse(newProject.Name);
