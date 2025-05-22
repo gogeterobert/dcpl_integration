@@ -220,26 +220,26 @@ namespace DCPLInterpreterV2.Services
             }
         }
 
-        private void CreateController(string validEntityName, string projectName, string? parentDir)
+        private void CreateController(string validActionName, string projectName, string? parentDir)
         {
             var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Controllers");
             Directory.CreateDirectory(controllersPath);
-            var controllerFilePath = Path.Combine(controllersPath, $"{validEntityName}Controller.cs");
+            var controllerFilePath = Path.Combine(controllersPath, $"{validActionName}Controller.cs");
             var controllerClass = $@"using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using {projectName}.Application.{validEntityName}.Commands;
+using {projectName}.Application.{validActionName}.Commands;
 
 namespace {projectName}.Web.Controllers
 {{
     [ApiController]
-    [Route(""api/{validEntityName}"")]
-    public class {validEntityName}Controller : ControllerBase
+    [Route(""api/{validActionName}"")]
+    public class {validActionName}Controller : ControllerBase
     {{
         private readonly IMediator _mediator;
-        public {validEntityName}Controller(IMediator mediator) => _mediator = mediator;
+        public {validActionName}Controller(IMediator mediator) => _mediator = mediator;
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Create{validEntityName}Command command)
+        public async Task<IActionResult> Create([FromBody] Create{validActionName}Command command)
         {{
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -249,71 +249,71 @@ namespace {projectName}.Web.Controllers
             File.WriteAllText(controllerFilePath, controllerClass);
         }
 
-        private void CreateMediatRCommandAndHandler(string validEntityName, string projectName, string? parentDir)
+        private void CreateMediatRCommandAndHandler(string validActionName, string projectName, string? parentDir)
         {
-            var commandsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", validEntityName, "Commands");
+            var commandsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", validActionName, "Commands");
             Directory.CreateDirectory(commandsPath);
-            var commandFilePath = Path.Combine(commandsPath, $"Create{validEntityName}Command.cs");
-            var handlerFilePath = Path.Combine(commandsPath, $"Create{validEntityName}CommandHandler.cs");
+            var commandFilePath = Path.Combine(commandsPath, $"Create{validActionName}Command.cs");
+            var handlerFilePath = Path.Combine(commandsPath, $"Create{validActionName}CommandHandler.cs");
 
             var commandClass = $@"using MediatR;
 
-namespace {projectName}.Application.{validEntityName}.Commands
+namespace {projectName}.Application.{validActionName}.Commands
 {{
-    public record Create{validEntityName}Command(string Name) : IRequest<Guid>;
+    public record Create{validActionName}Command(string Name) : IRequest<Guid>;
 }}";
             File.WriteAllText(commandFilePath, commandClass);
 
             var handlerClass = $@"using MediatR;
 using {projectName}.Application.Interfaces;
 
-namespace {projectName}.Application.{validEntityName}.Commands
+namespace {projectName}.Application.{validActionName}.Commands
 {{
-    public class Create{validEntityName}CommandHandler : IRequestHandler<Create{validEntityName}Command, Guid>
+    public class Create{validActionName}CommandHandler : IRequestHandler<Create{validActionName}Command, Guid>
     {{
-        private readonly I{validEntityName}Service _service;
-        public Create{validEntityName}CommandHandler(I{validEntityName}Service service) => _service = service;
+        private readonly I{validActionName}Service _service;
+        public Create{validActionName}CommandHandler(I{validActionName}Service service) => _service = service;
 
-        public async Task<Guid> Handle(Create{validEntityName}Command request, CancellationToken cancellationToken)
+        public async Task<Guid> Handle(Create{validActionName}Command request, CancellationToken cancellationToken)
         {{
-            return await _service.Create{validEntityName}Async(request.Name);
+            return await _service.Create{validActionName}Async(request.Name);
         }}
     }}
 }}";
             File.WriteAllText(handlerFilePath, handlerClass);
         }
 
-        private void CreateApplicationInterface(string validEntityName, string projectName, string? parentDir)
+        private void CreateApplicationInterface(string validActionName, string projectName, string? parentDir)
         {
             var appInterfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Interfaces");
             Directory.CreateDirectory(appInterfacesPath);
-            var interfaceFilePath = Path.Combine(appInterfacesPath, $"I{validEntityName}Service.cs");
+            var interfaceFilePath = Path.Combine(appInterfacesPath, $"I{validActionName}Service.cs");
             var interfaceClass = $@"using System.Threading.Tasks;
 
 namespace {projectName}.Application.Interfaces
 {{
-    public interface I{validEntityName}Service
+    public interface I{validActionName}Service
     {{
-        Task<Guid> Create{validEntityName}Async(string name);
+        Task<Guid> Create{validActionName}Async(string name);
     }}
 }}";
             File.WriteAllText(interfaceFilePath, interfaceClass);
         }
 
-        private void CreateInfrastructureImplementation(string validEntityName, string projectName, string? parentDir)
+        private void CreateInfrastructureImplementation(string validActionName, string projectName, string? parentDir)
         {
             var infraPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure");
             Directory.CreateDirectory(infraPath);
-            var infraImplPath = Path.Combine(infraPath, $"{validEntityName}Service.cs");
+            var infraImplPath = Path.Combine(infraPath, $"{validActionName}Service.cs");
             var infraImplClass = $@"using System;
 using System.Threading.Tasks;
 using {projectName}.Application.Interfaces;
 
 namespace {projectName}.Infrastructure
 {{
-    public class {validEntityName}Service : I{validEntityName}Service
+    public class {validActionName}Service : I{validActionName}Service
     {{
-        public Task<Guid> Create{validEntityName}Async(string name)
+        public Task<Guid> Create{validActionName}Async(string name)
         {{
             // TODO: Implement logic
             return Task.FromResult(Guid.NewGuid());
@@ -323,9 +323,9 @@ namespace {projectName}.Infrastructure
             File.WriteAllText(infraImplPath, infraImplClass);
         }
 
-        private void RegisterServiceInDependencyInjection(string validEntityName, string projectName, List<string> diLines, ref int addInfraIndex, string diPath)
+        private void RegisterServiceInDependencyInjection(string validActionName, string projectName, List<string> diLines, ref int addInfraIndex, string diPath)
         {
-            var registration = $"builder.Services.AddScoped<I{validEntityName}Service, {validEntityName}Service>();";
+            var registration = $"builder.Services.AddScoped<I{validActionName}Service, {validActionName}Service>();";
             if (addInfraIndex != -1 && !diLines.Any(l => l.Contains(registration)))
             {
                 diLines.Insert(addInfraIndex + 1, "        " + registration);
@@ -357,7 +357,7 @@ namespace {projectName}.Infrastructure
             }
         }
 
-        public void CreateGenericControllersAndCommands(List<string> entityNames, string projectName)
+        public void CreateGenericControllersAndCommands(List<string> actions, string projectName)
         {
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
             var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
@@ -371,19 +371,19 @@ namespace {projectName}.Infrastructure
                 addInfraIndex++;
             }
 
-            foreach (var entityName in entityNames)
+            foreach (var actionName in actions)
             {
-                var validEntityName = string.Concat(entityName.Where(char.IsLetterOrDigit));
-                if (string.IsNullOrWhiteSpace(validEntityName))
+                var validActionName = string.Concat(actionName.Where(char.IsLetterOrDigit));
+                if (string.IsNullOrWhiteSpace(validActionName))
                     continue;
-                validEntityName = char.ToUpper(validEntityName[0]) + validEntityName.Substring(1);
+                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
 
 
-                CreateController(validEntityName, projectName, parentDir);
-                CreateMediatRCommandAndHandler(validEntityName, projectName, parentDir);
-                CreateApplicationInterface(validEntityName, projectName, parentDir);
-                CreateInfrastructureImplementation(validEntityName, projectName, parentDir);
-                RegisterServiceInDependencyInjection(validEntityName, projectName, diLines, ref addInfraIndex, diPath);
+                CreateController(validActionName, projectName, parentDir);
+                CreateMediatRCommandAndHandler(validActionName, projectName, parentDir);
+                CreateApplicationInterface(validActionName, projectName, parentDir);
+                CreateInfrastructureImplementation(validActionName, projectName, parentDir);
+                RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
             }
 
             DeleteOldWebEndpoints(projectName);
