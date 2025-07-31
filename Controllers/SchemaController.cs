@@ -66,8 +66,8 @@ namespace DCPLInterpreterV2.Controllers
             // Add migration and apply it
             
             _schemaService.RemoveDevelopmentIfElse(newProject.Name);
-            _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");
-            _schemaService.ApplyEfMigrations(newProject.Name);
+            // _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");
+            // _schemaService.ApplyEfMigrations(newProject.Name);
         }
     }
 }

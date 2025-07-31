@@ -1,12 +1,27 @@
-{
-  "condition": "Library is open",
-  "conclusion": {
-      "position": "power",
-      "holder": "person",
-      "action": "#register",
-      "consequence": {
-        "entity": "person",
-        "in": "member"
-      }
+[
+  {
+    "condition": "Library is open",
+    "conclusion": {
+        "position": "power",
+        "holder": "person",
+        "action": "#register",
+        "consequence": {
+          "entity": "person",
+          "in": "member"
+        }
+    }
+  },
+  {
+    "condition": "Library is open",
+    "conclusion": {
+        "position": "power",
+        "holder": "member",
+        "action": "#deregister",
+        "consequence": {
+          "entity": "member",
+          "in": "person"
+        }
+    }
   }
-}
+]
+

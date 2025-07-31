@@ -403,7 +403,7 @@ namespace {projectName}.Infrastructure
             var startInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"ef migrations add {migrationName} --project \"./src/Infrastructure\" --startup-project \"./src/Web\"",
+                Arguments = $"ef migrations add {migrationName} --project ./src/Infrastructure --startup-project ./src/Web",
                 WorkingDirectory = solutionRoot,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -432,7 +432,7 @@ namespace {projectName}.Infrastructure
             var startInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"ef database update --project \"./src/Infrastructure\" --startup-project \"./src/Web\"",
+                Arguments = $"ef database update --project ./src/Infrastructure --startup-project ./src/Web",
                 WorkingDirectory = solutionRoot,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

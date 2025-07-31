@@ -3,7 +3,9 @@
 ## Prerequisites
 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Visual Studio Code](https://code.visualstudio.com/)
+- [Clean architecture .NET template installed](https://github.com/jasontaylordev/CleanArchitecture?tab=readme-ov-file#getting-started)
 
 ## Getting Started
 
