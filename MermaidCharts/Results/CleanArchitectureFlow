@@ -1,0 +1,18 @@
+flowchart TD
+    A[Presentation Layer<br/>API Controller] --> B[Application Layer<br/>CreateCommandNameCommandHandler]
+    B -->|Call method on entity| C[Domain Layer<br/>CommandName Entity]
+    B -->|Emit event| D[Application Layer<br/>CommandNameCreatedEvent]
+    B -->|Use services like<br/>IRepository, IEventBus| E[Infrastructure Layer<br/>Repository / EventBus]
+
+    subgraph AppLayer [Application]
+        B
+        D
+    end
+
+    subgraph DomainLayer [Domain]
+        C
+    end
+
+    subgraph InfraLayer [Infrastructure]
+        E
+    end

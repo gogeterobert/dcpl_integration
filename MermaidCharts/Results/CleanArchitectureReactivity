@@ -1,0 +1,16 @@
+flowchart TD
+    subgraph AppLayer [Application Layer]
+        Loop[Evaluation Loop / Background Service]
+        InfraEvent[(Emitted)]
+    end
+
+    subgraph InfraLayer [Infrastructure Layer]
+        IDataProvider[Interface<br/>IDataProvider / IRuleEvaluator]
+        DataSource[(Persisted Data / External State)]
+    end
+
+    Loop -->|Queries via interface| IDataProvider
+    IDataProvider --> DataSource
+
+    Loop -->|Emit event| InfraEvent
+
