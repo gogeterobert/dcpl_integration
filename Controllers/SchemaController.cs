@@ -44,7 +44,7 @@ namespace DCPLInterpreterV2.Controllers
         }
 
         [HttpGet("actionholders")]
-        public List<HolderAction> GetActionHolders()
+        public List<ActionHolder> GetActionHolders()
         {
             return _schemaService.GetActionHolders();
         }

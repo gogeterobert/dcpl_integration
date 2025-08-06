@@ -35,16 +35,16 @@ namespace DCPLInterpreterV2.Services
             _context.SaveChanges();
         }
 
-        public List<HolderAction> GetActionHolders()
+        public List<ActionHolder> GetActionHolders()
         {
             var directives = _context.Directives.ToList();
             var powerFrames = directives.Select(directiveEntity =>
                 JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
             ).Where(d => !string.IsNullOrEmpty(d?.Holder)).ToList();
 
-            var powerActions = powerFrames.SelectMany(powerFrame => new List<HolderAction>
+            var powerActions = powerFrames.SelectMany(powerFrame => new List<ActionHolder>
                 {
-                    new HolderAction {
+                    new ActionHolder {
                         Holder = powerFrame?.Holder ?? string.Empty,
                         Action = powerFrame?.Action ?? string.Empty
                     }
@@ -55,16 +55,17 @@ namespace DCPLInterpreterV2.Services
                 JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData)
             ).Where(d => d?.Conclusion != null).ToList();
             powerActions.AddRange(transformationFrames
-               .Select(transformationFrame => transformationFrame?.Conclusion)
-               .SelectMany(tf => new List<HolderAction>
+               .SelectMany(tf => new List<ActionHolder>
                {
-                    new HolderAction {
-                        Holder = tf?.Counterparty ?? string.Empty,
-                        Action = tf?.Action ?? string.Empty
+                    new ActionHolder {
+                        Holder = tf?.Conclusion?.Counterparty ?? string.Empty,
+                        Action = tf?.Conclusion?.Action ?? string.Empty,
+                        Condition = tf?.Condition ?? string.Empty
                     },
-                    new HolderAction {
-                        Holder = tf?.Holder ?? string.Empty,
-                        Action = tf?.Violation?.Event ?? string.Empty
+                    new ActionHolder {
+                        Holder = tf?.Conclusion?.Holder ?? string.Empty,
+                        Action = tf?.Conclusion?.Violation?.Event ?? string.Empty,
+                        Condition = tf?.Condition ?? string.Empty
                     }
                })
                .Where(a => !string.IsNullOrEmpty(a.Action))
@@ -235,41 +236,63 @@ namespace DCPLInterpreterV2.Services
             }
         }
 
-        private void CreateController(string validHolderName, string validActionName, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
+        private void CreateController(string validHolderName, List<string> validActionNames, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
         {
             var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Controllers");
             Directory.CreateDirectory(controllersPath);
-            var controllerFilePath = Path.Combine(controllersPath, $"{validActionName}Controller.cs");
+            var controllerFilePath = Path.Combine(controllersPath, $"{validHolderName}Controller.cs");
             var controllerClass = $@"using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using {projectName}.Application.{validActionName}.Commands;
+using {projectName}.Application.{validHolderName}.Commands;
 
 namespace {projectName}.Web.Controllers
 {{
-    [ApiController]
-    [Route(""api/{validActionName}"")]
+        [ApiController]
+    [Route(""api/{validHolderName}"")]
     public class {validHolderName}Controller : ControllerBase
     {{
         private readonly IMediator _mediator;
         public {validHolderName}Controller(IMediator mediator) => _mediator = mediator;
 
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Create{validActionName}Command command)
+";
+            foreach (var action in validActionNames)
+            {
+                var validActionName = string.Concat(action.Where(char.IsLetterOrDigit));
+                if (string.IsNullOrWhiteSpace(validActionName))
+                    continue;
+                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
+
+                controllerClass += $@"
+        [HttpPost(""{validActionName}"")]
+        public async Task<IActionResult> Create{validActionName}([FromBody] Create{validActionName}Command command)
         {{
             var result = await _mediator.Send(command);
             return Ok(result);
         }}
+    ";
+            }
+
+            controllerClass += $@"
     }}
 }}";
+
             File.WriteAllText(controllerFilePath, controllerClass);
 
-            CreateMediatRCommandAndHandler(validActionName, projectName, parentDir);
-            CreateApplicationInterface(validActionName, projectName, parentDir);
-            CreateInfrastructureImplementation(validActionName, projectName, parentDir);
-            RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
+            foreach (var action in validActionNames)
+            {
+                var validActionName = string.Concat(action.Where(char.IsLetterOrDigit));
+                if (string.IsNullOrWhiteSpace(validActionName))
+                    continue;
+                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
+
+                CreateMediatRCommandAndHandler(validActionName, validHolderName, projectName, parentDir);
+                CreateApplicationInterface(validActionName, projectName, parentDir);
+                CreateInfrastructureImplementation(validActionName, projectName, parentDir);
+                RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
+            }
         }
 
-        private void CreateMediatRCommandAndHandler(string validActionName, string projectName, string? parentDir)
+        private void CreateMediatRCommandAndHandler(string validActionName, string validHolderName, string projectName, string? parentDir)
         {
             var commandsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", validActionName, "Commands");
             Directory.CreateDirectory(commandsPath);
@@ -278,7 +301,7 @@ namespace {projectName}.Web.Controllers
 
             var commandClass = $@"using MediatR;
 
-namespace {projectName}.Application.{validActionName}.Commands
+namespace {projectName}.Application.{validHolderName}.Commands
 {{
     public record Create{validActionName}Command(string Name) : IRequest<Guid>;
 }}";
@@ -287,7 +310,7 @@ namespace {projectName}.Application.{validActionName}.Commands
             var handlerClass = $@"using MediatR;
 using {projectName}.Application.Interfaces;
 
-namespace {projectName}.Application.{validActionName}.Commands
+namespace {projectName}.Application.{validHolderName}.Commands
 {{
     public class Create{validActionName}CommandHandler : IRequestHandler<Create{validActionName}Command, Guid>
     {{
@@ -379,7 +402,7 @@ namespace {projectName}.Infrastructure
             }
         }
 
-        public void CreateGenericControllersAndCommands(List<HolderAction> actionHolders, string projectName)
+        public void CreateGenericControllersAndCommands(List<ActionHolder> actionHolders, string projectName)
         {
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
             var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
@@ -393,18 +416,25 @@ namespace {projectName}.Infrastructure
                 addInfraIndex++;
             }
 
-            foreach (var actionHolder in actionHolders)
+            var groupedByHolder = actionHolders
+                .Where(ah => !string.IsNullOrWhiteSpace(ah.Holder) && !string.IsNullOrWhiteSpace(ah.Action))
+                .GroupBy(ah => ah.Holder)
+                .ToList();
+
+            foreach (var holderGroup in groupedByHolder)
             {
-                var validHolderName = string.Concat(actionHolder.Holder.Where(char.IsLetterOrDigit));
-                var validActionName = string.Concat(actionHolder.Action.Where(char.IsLetterOrDigit));
-                if (string.IsNullOrWhiteSpace(validActionName))
-                    continue;
+                var validHolderName = string.Concat(holderGroup.Key.Where(char.IsLetterOrDigit));
                 if (string.IsNullOrWhiteSpace(validHolderName))
                     continue;
-                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
                 validHolderName = char.ToUpper(validHolderName[0]) + validHolderName.Substring(1);
 
-                CreateController(validHolderName, validActionName, projectName, parentDir, diLines, ref addInfraIndex, diPath);
+                var actions = holderGroup
+                    .Where(ah => !string.IsNullOrWhiteSpace(ah.Action))
+                    .Select(ah => ah.Action)
+                    .Distinct()
+                    .ToList();
+
+                CreateController(validHolderName, actions, projectName, parentDir, diLines, ref addInfraIndex, diPath);
             }
 
             DeleteOldWebEndpoints(projectName);

@@ -7,12 +7,12 @@ public interface ISchemaService
 {
     public void AddAndReplaceSchema(List<Frame> schema);
     List<string> GetHolders();
-    List<HolderAction> GetActionHolders();
+    List<ActionHolder> GetActionHolders();
     List<string> GetActions();
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
-    void CreateGenericControllersAndCommands(List<HolderAction> entities, string projectName);
+    void CreateGenericControllersAndCommands(List<ActionHolder> entities, string projectName);
     void AddEfMigration(string projectName, string migrationName);
     void ApplyEfMigrations(string projectName);
     void RemoveDevelopmentIfElse(string projectName);
