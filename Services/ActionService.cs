@@ -14,9 +14,8 @@ namespace DCPLInterpreterV2.Services
 
         public bool Act(Guid guid, string action)
         {
-            var holderActions = _schemaService.GetHolderActions();
+            var holderActions = _schemaService.GetActionHolders();
             var entityHolder = _entityService.GetEntityHolder(guid);
-            var consequence = _schemaService.GetActionConsequence(action);
 
             var canAct = holderActions.Exists(holderAction => holderAction.Holder == entityHolder && holderAction.Action == action);
 
@@ -33,7 +32,7 @@ namespace DCPLInterpreterV2.Services
 
         public List<string> GetActionsHolders(string action)
         {
-            var holderActions = _schemaService.GetHolderActions();
+            var holderActions = _schemaService.GetActionHolders();
             return holderActions.FindAll(holderAction => holderAction.Action == action).Select(holderAction => holderAction.Holder).ToList();
         }
     }

@@ -43,6 +43,12 @@ namespace DCPLInterpreterV2.Controllers
             return _schemaService.GetActions();
         }
 
+        [HttpGet("actionholders")]
+        public List<HolderAction> GetActionHolders()
+        {
+            return _schemaService.GetActionHolders();
+        }
+
         [HttpGet("entities")]
         public List<string> GetEntities()
         {
@@ -60,7 +66,7 @@ namespace DCPLInterpreterV2.Controllers
                 _schemaService.CreateNewEntityInGeneratedSolution(entity!, newProject.Name);
             }
 
-            var actionHolders = _schemaService.GetHolderActions();
+            var actionHolders = _schemaService.GetActionHolders();
 
             _schemaService.CreateGenericControllersAndCommands(actionHolders, newProject.Name);
             // Add migration and apply it

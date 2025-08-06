@@ -7,9 +7,8 @@ public interface ISchemaService
 {
     public void AddAndReplaceSchema(List<Frame> schema);
     List<string> GetHolders();
-    List<HolderAction> GetHolderActions();
+    List<HolderAction> GetActionHolders();
     List<string> GetActions();
-    Event GetActionConsequence(string action);
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);

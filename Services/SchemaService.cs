@@ -35,65 +35,76 @@ namespace DCPLInterpreterV2.Services
             _context.SaveChanges();
         }
 
-        public List<HolderAction> GetHolderActions()
+        public List<HolderAction> GetActionHolders()
         {
             var directives = _context.Directives.ToList();
-            var schema = directives.Select(directiveEntity =>
-                JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData) as PowerFrame
-            ).Where(d => d != null).ToList();
+            var powerFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
+            ).Where(d => !string.IsNullOrEmpty(d?.Holder)).ToList();
 
-            var powerActions = schema.SelectMany(powerFrame => new List<HolderAction>
+            var powerActions = powerFrames.SelectMany(powerFrame => new List<HolderAction>
                 {
                     new HolderAction {
                         Holder = powerFrame?.Holder ?? string.Empty,
-                        Action = powerFrame?.Action ?? string.Empty,
-                        Consequence = powerFrame?.Consequence }
+                        Action = powerFrame?.Action ?? string.Empty
+                    }
                 }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
 
-            // powerActions.AddRange(schema
-            //    .Select(powerFrame => powerFrame?.Conclusion)
-            //    .SelectMany(pf => new List<HolderAction>
-            //    {
-            //         new HolderAction {
-            //             Holder = pf?.Holder ?? string.Empty,
-            //             Action = pf?.Action?.Reference ?? string.Empty,
-            //             Consequence = pf?.Consequence }
-            //    })
-            //    .Where(a => !string.IsNullOrEmpty(a.Action))
-            //    .ToList());
+
+            var transformationFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData)
+            ).Where(d => d?.Conclusion != null).ToList();
+            powerActions.AddRange(transformationFrames
+               .Select(transformationFrame => transformationFrame?.Conclusion)
+               .SelectMany(tf => new List<HolderAction>
+               {
+                    new HolderAction {
+                        Holder = tf?.Counterparty ?? string.Empty,
+                        Action = tf?.Action ?? string.Empty
+                    },
+                    new HolderAction {
+                        Holder = tf?.Holder ?? string.Empty,
+                        Action = tf?.Violation?.Event ?? string.Empty
+                    }
+               })
+               .Where(a => !string.IsNullOrEmpty(a.Action))
+               .ToList());
 
             return powerActions;
         }
 
         public List<string> GetHolders()
         {
-            return GetHolderActions().Select(holderAction => holderAction.Holder).Distinct().ToList();
+            return GetActionHolders().Select(holderAction => holderAction.Holder).Distinct().ToList();
         }
 
         public List<string> GetActions()
         {
-            return GetHolderActions().Select(holderAction => holderAction.Action).Distinct().ToList();
-        }
-
-        public Event GetActionConsequence(string action)
-        {
-            return GetHolderActions().FirstOrDefault(holderAction => holderAction.Action == action)?.Consequence;
+            return GetActionHolders().Select(holderAction => holderAction.Action).Distinct().ToList();
         }
 
         public List<string> ParseAllEntitiesFromSchema()
         {
             var schemaEntities = new List<Entity>();
             var directives = _context.Directives.ToList();
-            var schema = directives.Select(directiveEntity =>
+            var powerFrames = directives.Select(directiveEntity =>
                     JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
             ).ToList();
 
             schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
-            // schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
-            //     .Where(e => !string.IsNullOrEmpty(e.Holder))
-            //     .Distinct(new EntityEqualityComparer()).ToList());
 
-            return schemaEntities.Select(e => e.Holder).ToList();
+            var transformationalFrames = directives.Select(directiveEntity =>
+                    JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData)
+            ).Where(t => t?.Conclusion != null).ToList();
+            schemaEntities.AddRange(transformationalFrames.Select(transformationFrame =>
+                new Entity
+                {
+                    Holder = transformationFrame?.Conclusion?.Holder ?? string.Empty
+                })
+                .Where(e => !string.IsNullOrEmpty(e.Holder))
+                .Distinct(new EntityEqualityComparer()).ToList());
+
+            return schemaEntities.Select(e => e.Holder).Distinct().ToList();
         }
 
         public string GenerateFromTemplate(string projectName)
