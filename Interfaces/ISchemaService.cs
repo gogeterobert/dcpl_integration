@@ -5,7 +5,7 @@ namespace DCPLInterpreterV2.Interfaces;
 
 public interface ISchemaService
 {
-    public void AddAndReplaceSchema(List<PowerFrame> schema);
+    public void AddAndReplaceSchema(List<Frame> schema);
     List<string> GetHolders();
     List<HolderAction> GetHolderActions();
     List<string> GetActions();

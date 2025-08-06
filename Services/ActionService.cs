@@ -26,7 +26,7 @@ namespace DCPLInterpreterV2.Services
             }
 
             //todo update with other consequences
-            _entityService.UpdateEntityHolder(guid, consequence.In);
+            // _entityService.UpdateEntityHolder(guid, consequence.In);
 
             return canAct;
         }

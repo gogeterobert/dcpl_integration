@@ -1,27 +1,31 @@
 [
   {
-    "condition": "Library is open",
-    "conclusion": {
-        "position": "power",
-        "holder": "person",
-        "action": "#register",
-        "consequence": {
-          "entity": "person",
-          "in": "member"
-        }
+    "position": "power",
+    "holder": "person",
+    "action": "#register",
+    "consequence": {
+      "entity": "person",
+      "in": "member"
     }
   },
   {
-    "condition": "Library is open",
+    "position": "power",
+    "holder": "member",
+    "action": "#requestBook",
+    "consequence": {
+      "plus": "borrowing"
+    }
+  },
+  {
+    "condition": "borrowing",
     "conclusion": {
-        "position": "power",
-        "holder": "member",
-        "action": "#deregister",
-        "consequence": {
-          "entity": "member",
-          "in": "person"
-        }
+      "position": "duty",
+      "holder": "library",
+      "counterparty": "member",
+      "action": "#return",
+      "violation": {
+        "event": "#timeout"
+      }
     }
   }
 ]
-

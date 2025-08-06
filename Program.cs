@@ -1,19 +1,28 @@
-using DCPLInterpreterV2.Converter;
 using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Services;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Serialization;
 
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
+    // .AddNewtonsoftJson(options =>
+    // {
+    //     // options.SerializerSettings.Converters.Add(new EventConverter());
+    //     options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+    // })
+    .AddJsonOptions(options =>
     {
-        options.SerializerSettings.Converters.Add(new EventConverter());
-        options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+        options.JsonSerializerOptions.Converters.Add(new FrameJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new EventJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new TransformationalFrameJsonConverter());
     });
+    // Register FrameJsonConverter globally
+    // builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

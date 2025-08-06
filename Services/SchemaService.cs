@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Text.Json;
 using DCPLInterpreterV2.Infrastructure;
 using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
-using Newtonsoft.Json;
 
 namespace DCPLInterpreterV2.Services
 {
@@ -18,12 +18,16 @@ namespace DCPLInterpreterV2.Services
             _logger = logger;
         }
 
-        public void AddAndReplaceSchema(List<PowerFrame> schema)
+        public void AddAndReplaceSchema(List<Frame> schema)
         {
+            var directiveEntity1 = schema[0] as TransformationalFrame;
+            var directiveEntity2 = schema[1] as TransformationalFrame;
+            var directiveEntity3 = schema[2] as TransformationalFrame;
+            var directiveEntity4 = (schema[2] as TransformationalFrame)?.Conclusion?.Position;
             var directiveEntities = schema.Select(directive => new DirectiveEntity
             {
-                DirectiveType = directive.GetType().Name,
-                JsonData = JsonConvert.SerializeObject(directive)
+                DirectiveType = directive.GetType().ToString(),
+                JsonData = Newtonsoft.Json.JsonConvert.SerializeObject(directive)
             }).ToList();
 
             _context.Directives.RemoveRange(_context.Directives);
@@ -35,28 +39,28 @@ namespace DCPLInterpreterV2.Services
         {
             var directives = _context.Directives.ToList();
             var schema = directives.Select(directiveEntity =>
-                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
-            ).ToList();
+                JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData) as PowerFrame
+            ).Where(d => d != null).ToList();
 
             var powerActions = schema.SelectMany(powerFrame => new List<HolderAction>
                 {
                     new HolderAction {
                         Holder = powerFrame?.Holder ?? string.Empty,
-                        Action = powerFrame?.Action?.Reference ?? string.Empty,
+                        Action = powerFrame?.Action ?? string.Empty,
                         Consequence = powerFrame?.Consequence }
                 }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
 
-            powerActions.AddRange(schema
-               .Select(powerFrame => powerFrame?.Conclusion)
-               .SelectMany(pf => new List<HolderAction>
-               {
-                    new HolderAction {
-                        Holder = pf?.Holder ?? string.Empty,
-                        Action = pf?.Action?.Reference ?? string.Empty,
-                        Consequence = pf?.Consequence }
-               })
-               .Where(a => !string.IsNullOrEmpty(a.Action))
-               .ToList());
+            // powerActions.AddRange(schema
+            //    .Select(powerFrame => powerFrame?.Conclusion)
+            //    .SelectMany(pf => new List<HolderAction>
+            //    {
+            //         new HolderAction {
+            //             Holder = pf?.Holder ?? string.Empty,
+            //             Action = pf?.Action?.Reference ?? string.Empty,
+            //             Consequence = pf?.Consequence }
+            //    })
+            //    .Where(a => !string.IsNullOrEmpty(a.Action))
+            //    .ToList());
 
             return powerActions;
         }
@@ -81,13 +85,13 @@ namespace DCPLInterpreterV2.Services
             var schemaEntities = new List<Entity>();
             var directives = _context.Directives.ToList();
             var schema = directives.Select(directiveEntity =>
-                JsonConvert.DeserializeObject(directiveEntity.JsonData, typeof(PowerFrame)) as PowerFrame
+                    JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
             ).ToList();
 
             schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
-            schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
-                .Where(e => !string.IsNullOrEmpty(e.Holder))
-                .Distinct(new EntityEqualityComparer()).ToList());
+            // schemaEntities.AddRange(schema.Select(powerFrame => new Entity { Holder = powerFrame?.Action?.Refinement?.Item ?? string.Empty })
+            //     .Where(e => !string.IsNullOrEmpty(e.Holder))
+            //     .Distinct(new EntityEqualityComparer()).ToList());
 
             return schemaEntities.Select(e => e.Holder).ToList();
         }
@@ -350,11 +354,13 @@ namespace {projectName}.Infrastructure
                 var usingApp = $"using {projectName}.Application.Interfaces;";
                 var usingInfra = $"using {projectName}.Infrastructure;";
                 var updated = false;
-                if (!diTextCurrent.Contains(usingApp)) {
+                if (!diTextCurrent.Contains(usingApp))
+                {
                     diTextCurrent = usingApp + "\n" + diTextCurrent;
                     updated = true;
                 }
-                if (!diTextCurrent.Contains(usingInfra)) {
+                if (!diTextCurrent.Contains(usingInfra))
+                {
                     diTextCurrent = usingInfra + "\n" + diTextCurrent;
                     updated = true;
                 }

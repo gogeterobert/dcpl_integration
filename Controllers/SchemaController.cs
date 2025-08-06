@@ -19,7 +19,7 @@ namespace DCPLInterpreterV2.Controllers
         }
 
         [HttpPost("CreateAndReplace")]
-        public async Task<IActionResult> Create([FromBody] List<PowerFrame> directives)
+        public async Task<IActionResult> Create([FromBody] List<Frame> directives)
         {
             if (directives == null)
             {
