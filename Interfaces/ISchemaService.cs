@@ -16,4 +16,5 @@ public interface ISchemaService
     void AddEfMigration(string projectName, string migrationName);
     void ApplyEfMigrations(string projectName);
     void RemoveDevelopmentIfElse(string projectName);
+    void AddMigrationLine(string projectName);
 }

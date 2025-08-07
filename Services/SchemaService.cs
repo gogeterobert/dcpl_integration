@@ -526,6 +526,26 @@ namespace {projectName}.Infrastructure
             File.WriteAllLines(programPath, newLines);
         }
 
+        public void AddMigrationLine(string projectName)
+        {
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var programPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Program.cs");
+            if (!File.Exists(programPath))
+                return;
+
+            var lines = File.ReadAllLines(programPath).ToList();
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (lines[i].Contains("app.UseStaticFiles();"))
+                {
+                    // Insert before this line
+                    lines.Insert(i, "await app.InitialiseDatabaseAsync();");
+                    break;
+                }
+            }
+            File.WriteAllLines(programPath, lines);
+        }
+
         public void DeleteOldWebEndpoints(string projectName)
         {
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
