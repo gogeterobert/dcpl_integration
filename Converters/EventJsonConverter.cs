@@ -12,16 +12,27 @@ public class EventJsonConverter : JsonConverter<Event>
             var root = doc.RootElement;
             if (root.ValueKind == JsonValueKind.Object)
             {
-                if (root.TryGetProperty("entity", out _))
+                // Check for empty object
+                if (root.GetRawText() == "{}")
+                    return new Event();
+
+                if (root.TryGetProperty("Entity", out _))
                 {
                     // NamingEvent
-                    return JsonSerializer.Deserialize<NamingEvent>(root.GetRawText(), options);
+                    var optionsWithoutConverters = new JsonSerializerOptions(options);
+                    optionsWithoutConverters.Converters.Clear();
+                    return JsonSerializer.Deserialize<NamingEvent>(root.GetRawText(), optionsWithoutConverters);
                 }
-                if (root.TryGetProperty("plus", out _))
+                if (root.TryGetProperty("Plus", out _))
                 {
                     // PlusProductEvent
-                    return JsonSerializer.Deserialize<PlusProductEvent>(root.GetRawText(), options);
+                    var optionsWithoutConverters = new JsonSerializerOptions(options);
+                    optionsWithoutConverters.Converters.Clear();
+                    return JsonSerializer.Deserialize<PlusProductEvent>(root.GetRawText(), optionsWithoutConverters);
                 }
+                
+                // If no known properties, treat as base Event
+                return new Event();
             }
             else if (root.ValueKind == JsonValueKind.String)
             {
@@ -29,23 +40,29 @@ public class EventJsonConverter : JsonConverter<Event>
                 return new Event();
             }
             // fallback
-            return JsonSerializer.Deserialize<Event>(root.GetRawText(), options);
+            return new Event();
         }
     }
 
     public override void Write(Utf8JsonWriter writer, Event value, JsonSerializerOptions options)
     {
+        // Create options without the converters to avoid infinite recursion
+        var optionsWithoutConverters = new JsonSerializerOptions(options);
+        optionsWithoutConverters.Converters.Clear();
+        
         if (value is NamingEvent naming)
         {
-            JsonSerializer.Serialize(writer, naming, options);
+            JsonSerializer.Serialize(writer, naming, optionsWithoutConverters);
         }
         else if (value is PlusProductEvent plus)
         {
-            JsonSerializer.Serialize(writer, plus, options);
+            JsonSerializer.Serialize(writer, plus, optionsWithoutConverters);
         }
         else
         {
-            JsonSerializer.Serialize(writer, value, options);
+            // For base Event, write empty object
+            writer.WriteStartObject();
+            writer.WriteEndObject();
         }
     }
 }

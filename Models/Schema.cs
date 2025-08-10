@@ -56,7 +56,7 @@ public class PlusProductEvent : Event
 public class NamingEvent : Event
 {
     public string? Entity { get; set; }
-    public string? Name { get; set; }
+    public string? In { get; set; }
 }
 
 public static class PositionTypes

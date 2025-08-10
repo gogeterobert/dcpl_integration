@@ -6,9 +6,11 @@ using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
 
 namespace DCPLInterpreterV2.Services
-{
+{    
     public class SchemaService : ISchemaService
     {
+        private readonly JsonSerializerOptions _jsonOptions;
+
         private readonly SchemaDbContext _context;
         private readonly ILogger<SchemaService> _logger;
 
@@ -16,6 +18,14 @@ namespace DCPLInterpreterV2.Services
         {
             _context = context;
             _logger = logger;
+
+            _jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            _jsonOptions.Converters.Add(new FrameJsonConverter());
+            _jsonOptions.Converters.Add(new EventJsonConverter());
+            _jsonOptions.Converters.Add(new TransformationalFrameJsonConverter());
         }
 
         public void AddAndReplaceSchema(List<Frame> schema)
@@ -27,7 +37,7 @@ namespace DCPLInterpreterV2.Services
             var directiveEntities = schema.Select(directive => new DirectiveEntity
             {
                 DirectiveType = directive.GetType().ToString(),
-                JsonData = Newtonsoft.Json.JsonConvert.SerializeObject(directive)
+                JsonData = JsonSerializer.Serialize(directive, _jsonOptions)
             }).ToList();
 
             _context.Directives.RemoveRange(_context.Directives);
@@ -39,20 +49,20 @@ namespace DCPLInterpreterV2.Services
         {
             var directives = _context.Directives.ToList();
             var powerFrames = directives.Select(directiveEntity =>
-                JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
+                JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(d => !string.IsNullOrEmpty(d?.Holder)).ToList();
 
             var powerActions = powerFrames.SelectMany(powerFrame => new List<ActionHolder>
                 {
                     new ActionHolder {
                         Holder = powerFrame?.Holder ?? string.Empty,
-                        Action = powerFrame?.Action ?? string.Empty
+                        Action = powerFrame?.Action ?? string.Empty,
+                        Consequence = powerFrame?.Consequence
                     }
                 }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
 
-
             var transformationFrames = directives.Select(directiveEntity =>
-                JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData)
+                JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(d => d?.Conclusion != null).ToList();
             powerActions.AddRange(transformationFrames
                .SelectMany(tf => new List<ActionHolder>
@@ -89,13 +99,13 @@ namespace DCPLInterpreterV2.Services
             var schemaEntities = new List<Entity>();
             var directives = _context.Directives.ToList();
             var powerFrames = directives.Select(directiveEntity =>
-                    JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData)
+                    JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData, _jsonOptions)
             ).ToList();
 
             schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
 
             var transformationalFrames = directives.Select(directiveEntity =>
-                    JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData)
+                    JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(t => t?.Conclusion != null).ToList();
             schemaEntities.AddRange(transformationalFrames.Select(transformationFrame =>
                 new Entity
@@ -236,7 +246,7 @@ namespace DCPLInterpreterV2.Services
             }
         }
 
-        private void CreateController(string validHolderName, List<string> validActionNames, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
+        private void CreateControllerAndCommands(string validHolderName, List<ActionHolder> actionHolders, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
         {
             var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Controllers");
             Directory.CreateDirectory(controllersPath);
@@ -255,9 +265,9 @@ namespace {projectName}.Web.Controllers
         public {validHolderName}Controller(IMediator mediator) => _mediator = mediator;
 
 ";
-            foreach (var action in validActionNames)
+            foreach (var action in actionHolders)
             {
-                var validActionName = string.Concat(action.Where(char.IsLetterOrDigit));
+                var validActionName = string.Concat(action.Action.Where(char.IsLetterOrDigit));
                 if (string.IsNullOrWhiteSpace(validActionName))
                     continue;
                 validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
@@ -278,21 +288,75 @@ namespace {projectName}.Web.Controllers
 
             File.WriteAllText(controllerFilePath, controllerClass);
 
-            foreach (var action in validActionNames)
+            foreach (var action in actionHolders)
             {
-                var validActionName = string.Concat(action.Where(char.IsLetterOrDigit));
+                var validActionName = string.Concat(action.Action.Where(char.IsLetterOrDigit));
                 if (string.IsNullOrWhiteSpace(validActionName))
                     continue;
                 validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
 
-                CreateMediatRCommandAndHandler(validActionName, validHolderName, projectName, parentDir);
+
+                var commandCode = GetActionEntityIfGate(validHolderName, validActionName);
+                commandCode += GetActionCodeBasedOnFrameEvntType(action);
+
+                CreateMediatRCommandAndHandler(validActionName, validHolderName, projectName, commandCode, false, parentDir);
                 CreateApplicationInterface(validActionName, projectName, parentDir);
                 CreateInfrastructureImplementation(validActionName, projectName, parentDir);
                 RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
             }
+
+            AddEntityToApplicationDbContextInterface(validHolderName, projectName, parentDir);
         }
 
-        private void CreateMediatRCommandAndHandler(string validActionName, string validHolderName, string projectName, string? parentDir)
+        private string GetActionCodeBasedOnFrameEvntType(ActionHolder actionHolder)
+        {
+            if ((actionHolder.Consequence as NamingEvent) != null && (actionHolder.Consequence as NamingEvent).Entity != null)
+            {
+                // add the validHolderName to the ApplicationDbContext in the consequence.in
+
+                return $@"
+                var entity = new Domain.Entities.{(actionHolder.Consequence as NamingEvent).In} {{ Name = request.Name }};
+                _applicationDbContext.{(actionHolder.Consequence as NamingEvent).In}s.Add(entity);
+                await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                return entity.Name;
+                ";
+            }
+            throw new NotImplementedException();
+        }
+
+        private string GetActionEntityIfGate(string validHolderName, string validActionName)
+        {
+            // create an if that checks if the entity exists, if not throw
+            return $@"
+            if (!await _applicationDbContext.{validHolderName}s.AnyAsync(x => x.Name == request.Name))
+                throw new NotFoundException(nameof({validHolderName}), request.Name);
+            ";
+        }
+
+        private void AddEntityToApplicationDbContextInterface(string validHolderName, string projectName, string? parentDir)
+        {
+            var dbContextPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Interfaces", "IApplicationDbContext.cs");
+            var dbContextClass = File.ReadAllText(dbContextPath);
+
+            var entityName = $"{validHolderName}";
+            var entityDbSet = $"public DbSet<{entityName}> {entityName}s {{ get; set; }}";
+
+            if (!dbContextClass.Contains(entityDbSet))
+            {
+                var lines = File.ReadAllLines(dbContextPath).ToList();
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (lines[i].Contains("DbSet<TodoItem> TodoItems { get; }"))
+                    {
+                        lines.Insert(i + 1, $"DbSet<Domain.Entities.{entityName}> {entityName}s {{ get; }}");
+                        break;
+                    }
+                }
+                File.WriteAllLines(dbContextPath, lines);
+            }
+        }
+
+        private void CreateMediatRCommandAndHandler(string validActionName, string validHolderName, string projectName, string commandCode, bool skipService, string? parentDir)
         {
             var commandsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", validActionName, "Commands");
             Directory.CreateDirectory(commandsPath);
@@ -303,23 +367,38 @@ namespace {projectName}.Web.Controllers
 
 namespace {projectName}.Application.{validHolderName}.Commands
 {{
-    public record Create{validActionName}Command(string Name) : IRequest<Guid>;
+    public record Create{validActionName}Command(string Name) : IRequest<string>;
 }}";
             File.WriteAllText(commandFilePath, commandClass);
 
             var handlerClass = $@"using MediatR;
 using {projectName}.Application.Interfaces;
+using {projectName}.Application.Common.Interfaces;
 
 namespace {projectName}.Application.{validHolderName}.Commands
 {{
-    public class Create{validActionName}CommandHandler : IRequestHandler<Create{validActionName}Command, Guid>
+    public class Create{validActionName}CommandHandler : IRequestHandler<Create{validActionName}Command, string>
     {{
-        private readonly I{validActionName}Service _service;
-        public Create{validActionName}CommandHandler(I{validActionName}Service service) => _service = service;
+        "
+        + (skipService ? "" : $"private readonly I{validActionName}Service _service;") +
+        @$"
+        private readonly IApplicationDbContext _applicationDbContext;
 
-        public async Task<Guid> Handle(Create{validActionName}Command request, CancellationToken cancellationToken)
+        public Create{validActionName}CommandHandler(
+        "
+        + (skipService ? "" : $"I{validActionName}Service service, ") +
+        @$"
+        IApplicationDbContext applicationDbContext)
         {{
-            return await _service.Create{validActionName}Async(request.Name);
+        "
+        + (skipService ? "" : $"_service = service ?? throw new ArgumentNullException(nameof(service));") +
+        @$"
+            _applicationDbContext = applicationDbContext ?? throw new ArgumentNullException(nameof(applicationDbContext));
+        }}
+
+        public async Task<string> Handle(Create{validActionName}Command request, CancellationToken cancellationToken)
+        {{
+            {commandCode}
         }}
     }}
 }}";
@@ -337,7 +416,7 @@ namespace {projectName}.Application.Interfaces
 {{
     public interface I{validActionName}Service
     {{
-        Task<Guid> Create{validActionName}Async(string name);
+        Task<string> Create{validActionName}Async(string name);
     }}
 }}";
             File.WriteAllText(interfaceFilePath, interfaceClass);
@@ -356,10 +435,10 @@ namespace {projectName}.Infrastructure
 {{
     public class {validActionName}Service : I{validActionName}Service
     {{
-        public Task<Guid> Create{validActionName}Async(string name)
+        public Task<string> Create{validActionName}Async(string name)
         {{
             // TODO: Implement logic
-            return Task.FromResult(Guid.NewGuid());
+            return Task.FromResult(Guid.NewGuid().ToString());
         }}
     }}
 }}";
@@ -375,13 +454,11 @@ namespace {projectName}.Infrastructure
                 addInfraIndex++;
             }
 
-            // Write back DependencyInjection.cs if changed
             if (File.Exists(diPath))
             {
                 File.WriteAllText(diPath, string.Join("\n", diLines));
             }
 
-            // Ensure correct usings in DependencyInjection.cs
             if (File.Exists(diPath))
             {
                 var diTextCurrent = File.ReadAllText(diPath);
@@ -430,16 +507,53 @@ namespace {projectName}.Infrastructure
 
                 var actions = holderGroup
                     .Where(ah => !string.IsNullOrWhiteSpace(ah.Action))
-                    .Select(ah => ah.Action)
                     .Distinct()
                     .ToList();
 
-                CreateController(validHolderName, actions, projectName, parentDir, diLines, ref addInfraIndex, diPath);
+                CreateControllerAndCommands(validHolderName, actions, projectName, parentDir, diLines, ref addInfraIndex, diPath);
+                CreateEntityCreationController(validHolderName, projectName, parentDir, diLines, ref addInfraIndex, diPath);
             }
 
             DeleteOldWebEndpoints(projectName);
             InsertAddControllersAfterAddWebServices(projectName);
             InsertMapControllersBeforeMapEndpoints(projectName);
+        }
+
+        private void CreateEntityCreationController(string validHolderName, string projectName, string? parentDir, List<string> diLines, ref int addInfraIndex, string diPath)
+        {
+            var controllersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Web", "Controllers");
+            Directory.CreateDirectory(controllersPath);
+            var controllerFilePath = Path.Combine(controllersPath, $"{validHolderName}CreationController.cs");
+            var controllerClass = $@"using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using {projectName}.Application.{validHolderName}.Commands;
+namespace {projectName}.Web.Controllers
+{{
+
+    [ApiController]
+    [Route(""api/{validHolderName}/create"")]
+    public class {validHolderName}CreationController : ControllerBase
+    {{
+        private readonly IMediator _mediator;
+        public {validHolderName}CreationController(IMediator mediator) => _mediator = mediator;
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateEntity{validHolderName}Command command)
+        {{
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }}
+    }}
+}}";
+
+            File.WriteAllText(controllerFilePath, controllerClass);
+            var commandCode = @$"
+                var entity = new Domain.Entities.{validHolderName} {{ Name = request.Name }};
+                _applicationDbContext.{validHolderName}s.Add(entity);
+                await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                return entity.Name;
+            ";
+            CreateMediatRCommandAndHandler("Entity" + validHolderName, validHolderName, projectName, commandCode, true, parentDir);
         }
 
         public void AddEfMigration(string projectName, string migrationName)
