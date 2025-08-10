@@ -103,7 +103,12 @@ namespace DCPLInterpreterV2.Services
             ).ToList();
 
             schemaEntities.AddRange(GetHolders().Select(holder => new Entity { Holder = holder }));
-
+            schemaEntities.AddRange(powerFrames
+                .Select(powerFrame => new Entity
+                {
+                    Holder = (powerFrame?.Consequence as PlusProductEvent)?.Plus ?? string.Empty
+                })
+                .Where(e => !string.IsNullOrEmpty(e.Holder)).ToList());
             var transformationalFrames = directives.Select(directiveEntity =>
                     JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(t => t?.Conclusion != null).ToList();
