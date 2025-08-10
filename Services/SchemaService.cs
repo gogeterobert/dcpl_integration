@@ -290,11 +290,11 @@ namespace {projectName}.Web.Controllers
 
             foreach (var action in actionHolders)
             {
-                var validActionName = string.Concat(action.Action.Where(char.IsLetterOrDigit));
+                string validActionName = GetValidNaming(action.Action);
                 if (string.IsNullOrWhiteSpace(validActionName))
+                {
                     continue;
-                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
-
+                }
 
                 var commandCode = GetActionEntityIfGate(validHolderName, validActionName);
                 commandCode += GetActionCodeBasedOnFrameEvntType(action);
@@ -308,20 +308,30 @@ namespace {projectName}.Web.Controllers
             AddEntityToApplicationDbContextInterface(validHolderName, projectName, parentDir);
         }
 
+        private static string GetValidNaming(string naming)
+        {
+            var validActionName = string.Concat(naming.Where(char.IsLetterOrDigit));
+            if (string.IsNullOrWhiteSpace(validActionName))
+                return null;
+            validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
+            return validActionName;
+        }
+
         private string GetActionCodeBasedOnFrameEvntType(ActionHolder actionHolder)
         {
             if ((actionHolder.Consequence as NamingEvent) != null && (actionHolder.Consequence as NamingEvent).Entity != null)
             {
                 // add the validHolderName to the ApplicationDbContext in the consequence.in
-
+                var validIn = GetValidNaming((actionHolder.Consequence as NamingEvent).In);
                 return $@"
-                var entity = new Domain.Entities.{(actionHolder.Consequence as NamingEvent).In} {{ Name = request.Name }};
-                _applicationDbContext.{(actionHolder.Consequence as NamingEvent).In}s.Add(entity);
+                var entity = new Domain.Entities.{validIn} {{ Name = request.Name }};
+                _applicationDbContext.{validIn}s.Add(entity);
                 await _applicationDbContext.SaveChangesAsync(cancellationToken);
                 return entity.Name;
                 ";
             }
-            throw new NotImplementedException();
+
+            return "return \"\";";
         }
 
         private string GetActionEntityIfGate(string validHolderName, string validActionName)

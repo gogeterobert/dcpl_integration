@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DCPLInterpreterV2.Models;
@@ -13,17 +12,9 @@ public class TransformationalFrameJsonConverter : JsonConverter<Transformational
             var root = doc.RootElement;
             var frame = new TransformationalFrame();
             
-            // Create options without THIS converter to avoid infinite recursion, but keep other converters
-            var optionsWithoutTransformationalConverter = new JsonSerializerOptions(options);
-            // Remove only the TransformationalFrameJsonConverter to prevent recursion
-            var convertersToKeep = optionsWithoutTransformationalConverter.Converters
-                .Where(c => c.GetType() != typeof(TransformationalFrameJsonConverter))
-                .ToList();
-            optionsWithoutTransformationalConverter.Converters.Clear();
-            foreach (var converter in convertersToKeep)
-            {
-                optionsWithoutTransformationalConverter.Converters.Add(converter);
-            }
+            // Create options without converters to avoid infinite recursion
+            var optionsWithoutConverters = new JsonSerializerOptions(options);
+            optionsWithoutConverters.Converters.Clear();
             
             if (root.TryGetProperty("condition", out var condProp))
             {
@@ -32,7 +23,7 @@ public class TransformationalFrameJsonConverter : JsonConverter<Transformational
             if (root.TryGetProperty("conclusion", out var conclProp))
             {
                 // Use FrameJsonConverter for conclusion
-                var conclusion = JsonSerializer.Deserialize<DutyFrame>(conclProp.GetRawText(), optionsWithoutTransformationalConverter);
+                var conclusion = JsonSerializer.Deserialize<DutyFrame>(conclProp.GetRawText(), optionsWithoutConverters);
                 if (conclusion != null)
                 {
                     frame.Conclusion = conclusion;
@@ -44,22 +35,14 @@ public class TransformationalFrameJsonConverter : JsonConverter<Transformational
 
     public override void Write(Utf8JsonWriter writer, TransformationalFrame value, JsonSerializerOptions options)
     {
-        // Create options without THIS converter to avoid infinite recursion, but keep other converters
-        var optionsWithoutTransformationalConverter = new JsonSerializerOptions(options);
-        // Remove only the TransformationalFrameJsonConverter to prevent recursion
-        var convertersToKeep = optionsWithoutTransformationalConverter.Converters
-            .Where(c => c.GetType() != typeof(TransformationalFrameJsonConverter))
-            .ToList();
-        optionsWithoutTransformationalConverter.Converters.Clear();
-        foreach (var converter in convertersToKeep)
-        {
-            optionsWithoutTransformationalConverter.Converters.Add(converter);
-        }
+        // Create options without converters to avoid infinite recursion
+        var optionsWithoutConverters = new JsonSerializerOptions(options);
+        optionsWithoutConverters.Converters.Clear();
         
         writer.WriteStartObject();
         writer.WriteString("condition", value.Condition);
         writer.WritePropertyName("conclusion");
-        JsonSerializer.Serialize(writer, value.Conclusion, optionsWithoutTransformationalConverter);
+        JsonSerializer.Serialize(writer, value.Conclusion, optionsWithoutConverters);
         writer.WriteEndObject();
     }
 }
