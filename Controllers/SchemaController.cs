@@ -70,7 +70,7 @@ namespace DCPLInterpreterV2.Controllers
 
             _schemaService.CreateGenericControllersAndCommands(actionHolders, newProject.Name);
             // Add migration and apply it
-            
+
             _schemaService.RemoveDevelopmentIfElse(newProject.Name);
             _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");
             _schemaService.AddMigrationLine(newProject.Name);

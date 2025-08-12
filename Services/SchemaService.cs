@@ -30,10 +30,6 @@ namespace DCPLInterpreterV2.Services
 
         public void AddAndReplaceSchema(List<Frame> schema)
         {
-            var directiveEntity1 = schema[0] as TransformationalFrame;
-            var directiveEntity2 = schema[1] as TransformationalFrame;
-            var directiveEntity3 = schema[2] as TransformationalFrame;
-            var directiveEntity4 = (schema[2] as TransformationalFrame)?.Conclusion?.Position;
             var directiveEntities = schema.Select(directive => new DirectiveEntity
             {
                 DirectiveType = directive.GetType().ToString(),
@@ -68,12 +64,12 @@ namespace DCPLInterpreterV2.Services
                .SelectMany(tf => new List<ActionHolder>
                {
                     new ActionHolder {
-                        Holder = tf?.Conclusion?.Counterparty ?? string.Empty,
+                        Holder = tf?.Conclusion?.Holder ?? string.Empty,
                         Action = tf?.Conclusion?.Action ?? string.Empty,
                         Condition = tf?.Condition ?? string.Empty
                     },
                     new ActionHolder {
-                        Holder = tf?.Conclusion?.Holder ?? string.Empty,
+                        Holder = tf?.Conclusion?.Counterparty ?? string.Empty,
                         Action = tf?.Conclusion?.Violation?.Event ?? string.Empty,
                         Condition = tf?.Condition ?? string.Empty
                     }
@@ -220,6 +216,7 @@ namespace DCPLInterpreterV2.Services
 
             // Add DbSet to ApplicationDbContext.cs
             AddDbSetToDbContext(validEntityName, projectName, parentDir);
+            AddEntityToApplicationDbContextInterface(validEntityName, projectName, parentDir);
         }
 
         private void AddDbSetToDbContext(string validEntityName, string projectName, string? parentDir)
@@ -309,8 +306,6 @@ namespace {projectName}.Web.Controllers
                 CreateInfrastructureImplementation(validActionName, projectName, parentDir);
                 RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
             }
-
-            AddEntityToApplicationDbContextInterface(validHolderName, projectName, parentDir);
         }
 
         private static string GetValidNaming(string naming)
@@ -331,6 +326,18 @@ namespace {projectName}.Web.Controllers
                 return $@"
                 var entity = new Domain.Entities.{validIn} {{ Name = request.Name }};
                 _applicationDbContext.{validIn}s.Add(entity);
+                await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                return entity.Name;
+                ";
+            }
+
+            if ((actionHolder.Consequence as PlusProductEvent) != null)
+            {
+                // add the validHolderName to the ApplicationDbContext in the consequence
+                var validHolderName = GetValidNaming((actionHolder.Consequence as PlusProductEvent).Plus);
+                return $@"
+                var entity = new Domain.Entities.{validHolderName} {{ Name = request.Name }};
+                _applicationDbContext.{validHolderName}s.Add(entity);
                 await _applicationDbContext.SaveChangesAsync(cancellationToken);
                 return entity.Name;
                 ";

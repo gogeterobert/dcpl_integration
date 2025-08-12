@@ -16,14 +16,14 @@ public class EventJsonConverter : JsonConverter<Event>
                 if (root.GetRawText() == "{}")
                     return new Event();
 
-                if (root.TryGetProperty("Entity", out _))
+                if (root.TryGetProperty("entity", out _) || root.TryGetProperty("Entity", out _))
                 {
                     // NamingEvent
                     var optionsWithoutConverters = new JsonSerializerOptions(options);
                     optionsWithoutConverters.Converters.Clear();
                     return JsonSerializer.Deserialize<NamingEvent>(root.GetRawText(), optionsWithoutConverters);
                 }
-                if (root.TryGetProperty("Plus", out _))
+                if (root.TryGetProperty("plus", out _) || root.TryGetProperty("Plus", out _))
                 {
                     // PlusProductEvent
                     var optionsWithoutConverters = new JsonSerializerOptions(options);

@@ -20,8 +20,8 @@
     "condition": "borrowing",
     "conclusion": {
       "position": "duty",
-      "holder": "library",
-      "counterparty": "member",
+      "holder": "member",
+      "counterparty": "library",
       "action": "#return",
       "violation": {
         "event": "#timeout"
