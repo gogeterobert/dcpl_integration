@@ -71,13 +71,23 @@ namespace DCPLInterpreterV2.Services
                     new ActionHolder {
                         Holder = tf?.Conclusion?.Counterparty ?? string.Empty,
                         Action = tf?.Conclusion?.Violation?.Event ?? string.Empty,
-                        Condition = tf?.Condition ?? string.Empty
+                        Condition = tf?.Condition ?? string.Empty,
+                        ViolationExpression = tf?.Conclusion?.Violation?.Expression
                     }
                })
-               .Where(a => !string.IsNullOrEmpty(a.Action))
+               .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression))
                .ToList());
 
             return powerActions;
+        }
+
+        public List<string> GetViolationExpressions()
+        {
+            return GetActionHolders()
+                .Where(actionHolder => !string.IsNullOrEmpty(actionHolder.ViolationExpression))
+                .Select(actionHolder => actionHolder.ViolationExpression!)
+                .Distinct()
+                .ToList();
         }
 
         public List<string> GetHolders()
@@ -741,6 +751,211 @@ namespace {projectName}.Web.Controllers
                 }
             }
             File.WriteAllLines(programPath, lines);
+        }
+
+        public void CreateViolationEvaluatorService(string projectName)
+        {
+            var violationExpressions = GetViolationExpressions();
+            if (!violationExpressions.Any())
+                return;
+
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            
+            // Create the exception class
+            CreateViolationException(projectName, parentDir);
+            
+            // Create the interface
+            CreateViolationEvaluatorInterface(projectName, parentDir);
+            
+            // Create the implementation
+            CreateViolationEvaluatorImplementation(projectName, parentDir, violationExpressions);
+            
+            // Register the service
+            RegisterViolationEvaluatorService(projectName, parentDir);
+        }
+
+        private void CreateViolationException(string projectName, string? parentDir)
+        {
+            var exceptionsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Exceptions");
+            Directory.CreateDirectory(exceptionsPath);
+            var exceptionFilePath = Path.Combine(exceptionsPath, "ViolationException.cs");
+
+            var exceptionCode = $@"namespace {projectName}.Application.Common.Exceptions;
+
+public class ViolationException : Exception
+{{
+    public ViolationException()
+    {{
+    }}
+
+    public ViolationException(string message)
+        : base(message)
+    {{
+    }}
+
+    public ViolationException(string message, Exception innerException)
+        : base(message, innerException)
+    {{
+    }}
+}}";
+
+            File.WriteAllText(exceptionFilePath, exceptionCode);
+        }
+
+        private void CreateViolationEvaluatorInterface(string projectName, string? parentDir)
+        {
+            var interfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Interfaces");
+            Directory.CreateDirectory(interfacesPath);
+            var interfaceFilePath = Path.Combine(interfacesPath, "IViolationEvaluatorService.cs");
+
+            var interfaceCode = $@"namespace {projectName}.Application.Common.Interfaces;
+
+public interface IViolationEvaluatorService
+{{
+    Task CheckViolationsAsync();
+}}";
+
+            File.WriteAllText(interfaceFilePath, interfaceCode);
+        }
+
+        private void CreateViolationEvaluatorImplementation(string projectName, string? parentDir, List<string> violationExpressions)
+        {
+            var servicesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Services");
+            Directory.CreateDirectory(servicesPath);
+            var serviceFilePath = Path.Combine(servicesPath, "ViolationEvaluatorService.cs");
+
+            var evaluationMethods = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
+                $@"    private bool EvaluateExpression{index + 1}()
+    {{
+        try
+        {{
+            return {expr};
+        }}
+        catch (Exception ex)
+        {{
+            _logger.LogError(ex, ""Error evaluating violation expression: {expr.Replace("\"", "\\\"")}"");
+            return false;
+        }}
+    }}"));
+
+            var evaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
+                $@"        if (EvaluateExpression{index + 1}())
+        {{
+            _logger.LogError(""Violation detected: {expr.Replace("\"", "\\\"")}"");
+            throw new ViolationException(""Violation detected: {expr.Replace("\"", "\\\"")}"");
+        }}"));
+
+            var serviceCode = $@"using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
+using {projectName}.Application.Common.Interfaces;
+using {projectName}.Application.Common.Exceptions;
+
+namespace {projectName}.Application.Common.Services;
+
+public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorService
+{{
+    private readonly ILogger<ViolationEvaluatorService> _logger;
+    private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(1);
+
+    public ViolationEvaluatorService(ILogger<ViolationEvaluatorService> logger)
+    {{
+        _logger = logger;
+    }}
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {{
+        _logger.LogInformation(""ViolationEvaluatorService started with 1-second interval"");
+        
+        while (!stoppingToken.IsCancellationRequested)
+        {{
+            try
+            {{
+                await CheckViolationsAsync();
+                await Task.Delay(_checkInterval, stoppingToken);
+            }}
+            catch (ViolationException vex)
+            {{
+                _logger.LogError(vex, ""Violation detected during scheduled check"");
+                // Continue running even after violations are detected
+            }}
+            catch (OperationCanceledException)
+            {{
+                // Expected when cancellation is requested
+                break;
+            }}
+            catch (Exception ex)
+            {{
+                _logger.LogError(ex, ""Unexpected error during violation check"");
+                // Continue running even after unexpected errors
+                await Task.Delay(_checkInterval, stoppingToken);
+            }}
+        }}
+        
+        _logger.LogInformation(""ViolationEvaluatorService stopped"");
+    }}
+
+    public async Task CheckViolationsAsync()
+    {{
+{evaluationCalls}
+        await Task.CompletedTask;
+    }}
+
+{evaluationMethods}
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {{
+        _logger.LogInformation(""ViolationEvaluatorService is stopping"");
+        await base.StopAsync(cancellationToken);
+    }}
+}}";
+
+            File.WriteAllText(serviceFilePath, serviceCode);
+        }
+
+        private void RegisterViolationEvaluatorService(string projectName, string? parentDir)
+        {
+            var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "DependencyInjection.cs");
+            if (File.Exists(diPath))
+            {
+                var diText = File.ReadAllText(diPath);
+                var registration = $"builder.Services.AddHostedService<ViolationEvaluatorService>();";
+                var singletonRegistration = $"builder.Services.AddSingleton<IViolationEvaluatorService>(provider => provider.GetRequiredService<ViolationEvaluatorService>());";
+                
+                if (!diText.Contains(registration))
+                {
+                    var lines = diText.Split('\n').ToList();
+                    for (int i = 0; i < lines.Count; i++)
+                    {
+                        if (lines[i].Contains("builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());"))
+                        {
+                            lines.Insert(i, $"        {registration}");
+                            lines.Insert(i + 1, $"        {singletonRegistration}");
+                            lines.Insert(i, "");
+                            break;
+                        }
+                    }
+                    File.WriteAllText(diPath, string.Join("\n", lines));
+                }
+
+                // Add using statement
+                var usingStatement = @$"using {projectName}.Application.Common.Services;
+using {projectName}.Application.Common.Interfaces;";
+                if (!diText.Contains(usingStatement))
+                {
+                    var lines = File.ReadAllLines(diPath).ToList();
+                    var lastUsingIndex = -1;
+                    for (int i = 0; i < lines.Count; i++)
+                    {
+                        if (lines[i].StartsWith("using "))
+                            lastUsingIndex = i;
+                    }
+                    if (lastUsingIndex != -1)
+                    {
+                        lines.Insert(lastUsingIndex + 1, usingStatement);
+                        File.WriteAllLines(diPath, lines);
+                    }
+                }
+            }
         }
     }
 }

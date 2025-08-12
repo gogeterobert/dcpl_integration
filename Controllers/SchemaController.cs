@@ -55,6 +55,12 @@ namespace DCPLInterpreterV2.Controllers
             return _schemaService.ParseAllEntitiesFromSchema();
         }
 
+        [HttpGet("violations")]
+        public List<string> GetViolationExpressions()
+        {
+            return _schemaService.GetViolationExpressions();
+        }
+
         [HttpPost("generate")]
         public void Generate([FromBody] NewProject newProject)
         {
@@ -69,8 +75,11 @@ namespace DCPLInterpreterV2.Controllers
             var actionHolders = _schemaService.GetActionHolders();
 
             _schemaService.CreateGenericControllersAndCommands(actionHolders, newProject.Name);
+            
+            // Create violation evaluator service
+            _schemaService.CreateViolationEvaluatorService(newProject.Name);
+            
             // Add migration and apply it
-
             _schemaService.RemoveDevelopmentIfElse(newProject.Name);
             _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");
             _schemaService.AddMigrationLine(newProject.Name);

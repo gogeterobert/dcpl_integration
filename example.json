@@ -24,7 +24,8 @@
       "counterparty": "library",
       "action": "#return",
       "violation": {
-        "event": "#timeout"
+        "event": "#timeout",
+        "expression": "DateTime.Now > new DateTime(2026, 1, 1)"
       }
     }
   }

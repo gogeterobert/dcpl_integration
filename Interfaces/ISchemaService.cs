@@ -9,10 +9,12 @@ public interface ISchemaService
     List<string> GetHolders();
     List<ActionHolder> GetActionHolders();
     List<string> GetActions();
+    List<string> GetViolationExpressions();
     List<string> ParseAllEntitiesFromSchema();
     string GenerateFromTemplate(string projectName);
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
     void CreateGenericControllersAndCommands(List<ActionHolder> entities, string projectName);
+    void CreateViolationEvaluatorService(string projectName);
     void AddEfMigration(string projectName, string migrationName);
     void ApplyEfMigrations(string projectName);
     void RemoveDevelopmentIfElse(string projectName);
