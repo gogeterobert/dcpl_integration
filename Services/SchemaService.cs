@@ -298,8 +298,8 @@ namespace {projectName}.Web.Controllers
                     continue;
                 }
 
-                var commandCode = GetActionEntityIfGate(validHolderName, validActionName);
-                commandCode += GetActionCodeBasedOnFrameEvntType(action);
+                var commandCode = GetActionEntityIfGate(validHolderName, action);
+                commandCode += GetActionCodeBasedOnFrameEventType(action);
 
                 CreateMediatRCommandAndHandler(validActionName, validHolderName, projectName, commandCode, false, parentDir);
                 CreateApplicationInterface(validActionName, projectName, parentDir);
@@ -317,7 +317,7 @@ namespace {projectName}.Web.Controllers
             return validActionName;
         }
 
-        private string GetActionCodeBasedOnFrameEvntType(ActionHolder actionHolder)
+        private string GetActionCodeBasedOnFrameEventType(ActionHolder actionHolder)
         {
             if ((actionHolder.Consequence as NamingEvent) != null && (actionHolder.Consequence as NamingEvent).Entity != null)
             {
@@ -346,13 +346,24 @@ namespace {projectName}.Web.Controllers
             return "return \"\";";
         }
 
-        private string GetActionEntityIfGate(string validHolderName, string validActionName)
+        private string GetActionEntityIfGate(string validHolderName, ActionHolder actionHolder)
         {
+            var extraGuard = GetExtraGuardBasedOnActionCondition(actionHolder);
             // create an if that checks if the entity exists, if not throw
             return $@"
-            if (!await _applicationDbContext.{validHolderName}s.AnyAsync(x => x.Name == request.Name))
+            if (!await _applicationDbContext.{validHolderName}s.AnyAsync(x => x.Name == request.Name){extraGuard})
                 throw new NotFoundException(nameof({validHolderName}), request.Name);
             ";
+        }
+
+        private object GetExtraGuardBasedOnActionCondition(ActionHolder actionHolder)
+        {
+            if (string.IsNullOrEmpty(actionHolder.Condition))
+                return string.Empty;
+
+            var validObjectName = GetValidNaming(actionHolder.Condition);
+
+            return $@" && !await _applicationDbContext.{validObjectName}s.AnyAsync()";
         }
 
         private void AddEntityToApplicationDbContextInterface(string validHolderName, string projectName, string? parentDir)
