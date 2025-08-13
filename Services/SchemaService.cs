@@ -329,6 +329,21 @@ namespace {projectName}.Web.Controllers
 
         private string GetActionCodeBasedOnFrameEventType(ActionHolder actionHolder)
         {
+            // Check if this is a violation action (has ViolationExpression)
+            if (!string.IsNullOrEmpty(actionHolder.ViolationExpression))
+            {
+                return $@"
+                // This is a violation action - publish violation event
+                var violationEvent = new Application.Common.Events.ViolationDetectedEvent(
+                    ""Violation action '{actionHolder.Action}' was triggered"",
+                    ""{actionHolder.ViolationExpression?.Replace("\"", "\\\"")}"",
+                    ""{actionHolder.Action}"");
+                
+                await _mediator.Publish(violationEvent, cancellationToken);
+                return ""Violation action executed"";
+                ";
+            }
+
             if ((actionHolder.Consequence as NamingEvent) != null && (actionHolder.Consequence as NamingEvent).Entity != null)
             {
                 // add the validHolderName to the ApplicationDbContext in the consequence.in
@@ -426,17 +441,20 @@ namespace {projectName}.Application.{validHolderName}.Commands
         + (skipService ? "" : $"private readonly I{validActionName}Service _service;") +
         @$"
         private readonly IApplicationDbContext _applicationDbContext;
+        private readonly IMediator _mediator;
 
         public Create{validActionName}CommandHandler(
         "
         + (skipService ? "" : $"I{validActionName}Service service, ") +
         @$"
-        IApplicationDbContext applicationDbContext)
+        IApplicationDbContext applicationDbContext,
+        IMediator mediator)
         {{
         "
         + (skipService ? "" : $"_service = service ?? throw new ArgumentNullException(nameof(service));") +
         @$"
             _applicationDbContext = applicationDbContext ?? throw new ArgumentNullException(nameof(applicationDbContext));
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         }}
 
         public async Task<string> Handle(Create{validActionName}Command request, CancellationToken cancellationToken)
@@ -764,12 +782,15 @@ namespace {projectName}.Web.Controllers
             // Create the exception class
             CreateViolationException(projectName, parentDir);
             
+            // Create the violation event and handler
+            CreateViolationEvent(projectName, parentDir);
+            CreateViolationEventHandler(projectName, parentDir);
+            
             // Create the expression evaluator service (Interface in Application, Implementation in Infrastructure)
             CreateExpressionEvaluatorInterface(projectName, parentDir);
             CreateExpressionEvaluatorImplementation(projectName, parentDir, violationExpressions);
             
-            // Create the violation evaluator interface and implementation (both in Application)
-            CreateViolationEvaluatorInterface(projectName, parentDir);
+            // Create the violation evaluator implementation (no interface needed as it's a hosted service)
             CreateViolationEvaluatorImplementation(projectName, parentDir, violationExpressions);
             
             // Register the services
@@ -804,6 +825,80 @@ public class ViolationException : Exception
             File.WriteAllText(exceptionFilePath, exceptionCode);
         }
 
+        private void CreateViolationEvent(string projectName, string? parentDir)
+        {
+            var eventsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Events");
+            Directory.CreateDirectory(eventsPath);
+            var eventFilePath = Path.Combine(eventsPath, "ViolationDetectedEvent.cs");
+
+            var eventCode = $@"using MediatR;
+
+namespace {projectName}.Application.Common.Events;
+
+public class ViolationDetectedEvent : INotification
+{{
+    public string ViolationMessage {{ get; set; }}
+    public string? ViolationExpression {{ get; set; }}
+    public string? ViolationAction {{ get; set; }}
+    public DateTime DetectedAt {{ get; set; }}
+
+    public ViolationDetectedEvent(string violationMessage, string? violationExpression = null, string? violationAction = null)
+    {{
+        ViolationMessage = violationMessage;
+        ViolationExpression = violationExpression;
+        ViolationAction = violationAction;
+        DetectedAt = DateTime.UtcNow;
+    }}
+}}";
+
+            File.WriteAllText(eventFilePath, eventCode);
+        }
+
+        private void CreateViolationEventHandler(string projectName, string? parentDir)
+        {
+            var handlersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "EventHandlers");
+            Directory.CreateDirectory(handlersPath);
+            var handlerFilePath = Path.Combine(handlersPath, "ViolationDetectedEventHandler.cs");
+
+            var handlerCode = $@"using MediatR;
+using Microsoft.Extensions.Logging;
+using {projectName}.Application.Common.Events;
+using {projectName}.Application.Common.Exceptions;
+
+namespace {projectName}.Application.Common.EventHandlers;
+
+public class ViolationDetectedEventHandler : INotificationHandler<ViolationDetectedEvent>
+{{
+    private readonly ILogger<ViolationDetectedEventHandler> _logger;
+
+    public ViolationDetectedEventHandler(ILogger<ViolationDetectedEventHandler> logger)
+    {{
+        _logger = logger;
+    }}
+
+    public Task Handle(ViolationDetectedEvent notification, CancellationToken cancellationToken)
+    {{
+        _logger.LogError(""Violation detected at {{DetectedAt}}: {{Message}}"", 
+            notification.DetectedAt, notification.ViolationMessage);
+        
+        if (!string.IsNullOrEmpty(notification.ViolationExpression))
+        {{
+            _logger.LogError(""Violation Expression: {{Expression}}"", notification.ViolationExpression);
+        }}
+        
+        if (!string.IsNullOrEmpty(notification.ViolationAction))
+        {{
+            _logger.LogError(""Violation Action: {{Action}}"", notification.ViolationAction);
+        }}
+
+        // For now, throw an exception when violation is detected
+        throw new ViolationException(notification.ViolationMessage);
+    }}
+}}";
+
+            File.WriteAllText(handlerFilePath, handlerCode);
+        }
+
         private void CreateExpressionEvaluatorInterface(string projectName, string? parentDir)
         {
             var interfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Interfaces");
@@ -812,9 +907,21 @@ public class ViolationException : Exception
 
             var interfaceCode = $@"namespace {projectName}.Application.Common.Interfaces;
 
+public class ViolationResult
+{{
+    public string Message {{ get; set; }}
+    public string Expression {{ get; set; }}
+    
+    public ViolationResult(string message, string expression)
+    {{
+        Message = message;
+        Expression = expression;
+    }}
+}}
+
 public interface IExpressionEvaluatorService
 {{
-    Task<List<string>> EvaluateViolationExpressionsAsync();
+    Task<List<ViolationResult>> EvaluateViolationExpressionsAsync();
 }}";
 
             File.WriteAllText(interfaceFilePath, interfaceCode);
@@ -843,7 +950,7 @@ public interface IExpressionEvaluatorService
             var evaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
                 $@"        if (EvaluateExpression{index + 1}())
         {{
-            violations.Add(""Violation detected: {expr.Replace("\"", "\\\"")}"");
+            violations.Add(new ViolationResult(""Violation detected: {expr.Replace("\"", "\\\"")}"", ""{expr.Replace("\"", "\\\"")}""));
         }}"));
 
             var serviceCode = $@"using Microsoft.Extensions.Logging;
@@ -860,9 +967,9 @@ public class ExpressionEvaluatorService : IExpressionEvaluatorService
         _logger = logger;
     }}
 
-    public async Task<List<string>> EvaluateViolationExpressionsAsync()
+    public async Task<List<ViolationResult>> EvaluateViolationExpressionsAsync()
     {{
-        var violations = new List<string>();
+        var violations = new List<ViolationResult>();
         
 {evaluationCalls}
         
@@ -900,23 +1007,28 @@ public interface IViolationEvaluatorService
 
             var serviceCode = $@"using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
+using MediatR;
 using {projectName}.Application.Common.Interfaces;
+using {projectName}.Application.Common.Events;
 using {projectName}.Application.Common.Exceptions;
 
 namespace {projectName}.Application.Common.Services;
 
-public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorService
+public class ViolationEvaluatorService : BackgroundService
 {{
     private readonly ILogger<ViolationEvaluatorService> _logger;
     private readonly IExpressionEvaluatorService _expressionEvaluator;
+    private readonly IMediator _mediator;
     private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(1);
 
     public ViolationEvaluatorService(
         ILogger<ViolationEvaluatorService> logger,
-        IExpressionEvaluatorService expressionEvaluator)
+        IExpressionEvaluatorService expressionEvaluator,
+        IMediator mediator)
     {{
         _logger = logger;
         _expressionEvaluator = expressionEvaluator;
+        _mediator = mediator;
     }}
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -957,13 +1069,13 @@ public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorS
         
         foreach (var violation in violations)
         {{
-            _logger.LogError(""{{Violation}}"", violation);
-        }}
-        
-        if (violations.Any())
-        {{
-            var allViolations = string.Join(""; "", violations);
-            throw new ViolationException(allViolations);
+            // Publish violation event for each detected violation
+            var violationEvent = new ViolationDetectedEvent(
+                violation.Message, 
+                violation.Expression, 
+                null);
+            
+            await _mediator.Publish(violationEvent);
         }}
         
         await Task.CompletedTask;
