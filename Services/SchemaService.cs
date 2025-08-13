@@ -138,8 +138,6 @@ namespace DCPLInterpreterV2.Services
 
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
             var projectPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName);
-
-            // Remove old project directory if it exists
             if (Directory.Exists(projectPath))
             {
                 const int maxRetries = 5;
@@ -199,8 +197,6 @@ namespace DCPLInterpreterV2.Services
         {
             if (string.IsNullOrWhiteSpace(entityName) || string.IsNullOrWhiteSpace(projectName))
                 throw new ArgumentException("Entity name and project name must be provided.");
-
-            // Ensure entity name is a valid C# identifier and starts with uppercase
             var validEntityName = string.Concat(entityName.Where(char.IsLetterOrDigit));
             if (string.IsNullOrWhiteSpace(validEntityName))
                 throw new ArgumentException("Entity name must contain at least one letter or digit.");
@@ -223,8 +219,6 @@ namespace DCPLInterpreterV2.Services
             }}";
 
             File.WriteAllText(entityFilePath, entityClass);
-
-            // Add DbSet to ApplicationDbContext.cs
             AddDbSetToDbContext(validEntityName, projectName, parentDir);
             AddEntityToApplicationDbContextInterface(validEntityName, projectName, parentDir);
         }
@@ -238,12 +232,10 @@ namespace DCPLInterpreterV2.Services
                 var dbSetLine = $"    public DbSet<{validEntityName}> {validEntityName}s => Set<{validEntityName}>();";
                 if (!dbContextText.Contains(dbSetLine))
                 {
-                    // Find last DbSet or constructor
                     var lines = dbContextText.Split('\n').ToList();
                     int insertIndex = lines.FindLastIndex(l => l.Contains("DbSet<"));
                     if (insertIndex == -1)
                     {
-                        // Fallback: after constructor
                         insertIndex = lines.FindIndex(l => l.Contains("public ApplicationDbContext"));
                         while (insertIndex < lines.Count && !lines[insertIndex].Contains("{")) insertIndex++;
                         insertIndex++;
@@ -329,11 +321,9 @@ namespace {projectName}.Web.Controllers
 
         private string GetActionCodeBasedOnFrameEventType(ActionHolder actionHolder)
         {
-            // Check if this is a violation action (has ViolationExpression)
             if (!string.IsNullOrEmpty(actionHolder.ViolationExpression))
             {
                 return $@"
-                // This is a violation action - publish violation event
                 var violationEvent = new Application.Common.Events.ViolationDetectedEvent(
                     ""Violation action '{actionHolder.Action}' was triggered"",
                     ""{actionHolder.ViolationExpression?.Replace("\"", "\\\"")}"",
@@ -346,7 +336,6 @@ namespace {projectName}.Web.Controllers
 
             if ((actionHolder.Consequence as NamingEvent) != null && (actionHolder.Consequence as NamingEvent).Entity != null)
             {
-                // add the validHolderName to the ApplicationDbContext in the consequence.in
                 var validIn = GetValidNaming((actionHolder.Consequence as NamingEvent).In);
                 return $@"
                 var entity = new Domain.Entities.{validIn} {{ Name = request.Name }};
@@ -358,7 +347,6 @@ namespace {projectName}.Web.Controllers
 
             if ((actionHolder.Consequence as PlusProductEvent) != null)
             {
-                // add the validHolderName to the ApplicationDbContext in the consequence
                 var validHolderName = GetValidNaming((actionHolder.Consequence as PlusProductEvent).Plus);
                 return $@"
                 var entity = new Domain.Entities.{validHolderName} {{ Name = request.Name }};
@@ -374,7 +362,6 @@ namespace {projectName}.Web.Controllers
         private string GetActionEntityIfGate(string validHolderName, ActionHolder actionHolder)
         {
             var extraGuard = GetExtraGuardBasedOnActionCondition(actionHolder);
-            // create an if that checks if the entity exists, if not throw
             return $@"
             if (!await _applicationDbContext.{validHolderName}s.AnyAsync(x => x.Name == request.Name){extraGuard})
                 throw new NotFoundException(nameof({validHolderName}), request.Name);
@@ -498,7 +485,6 @@ namespace {projectName}.Infrastructure
     {{
         public Task<string> Create{validActionName}Async(string name)
         {{
-            // TODO: Implement logic
             return Task.FromResult(Guid.NewGuid().ToString());
         }}
     }}
@@ -549,7 +535,6 @@ namespace {projectName}.Infrastructure
             int addInfraIndex = diLines.FindIndex(l => l.Contains("void AddInfrastructureServices"));
             if (addInfraIndex != -1)
             {
-                // Find the opening brace of the method
                 while (addInfraIndex < diLines.Count && !diLines[addInfraIndex].Contains("{")) addInfraIndex++;
                 addInfraIndex++;
             }
@@ -689,7 +674,6 @@ namespace {projectName}.Web.Controllers
             {
                 if (lines[i].Contains("if") && lines[i].Contains("app.Environment.IsDevelopment()"))
                 {
-                    // Skip exactly 9 lines (the if block and its contents)
                     i += 9;
                 }
                 else
@@ -713,7 +697,6 @@ namespace {projectName}.Web.Controllers
             {
                 if (lines[i].Contains("app.UseStaticFiles();"))
                 {
-                    // Insert before this line
                     lines.Insert(i, "await app.InitialiseDatabaseAsync();");
                     break;
                 }
@@ -743,7 +726,6 @@ namespace {projectName}.Web.Controllers
             {
                 if (lines[i].Contains("builder.AddWebServices();"))
                 {
-                    // Insert after this line
                     lines.Insert(i + 1, "builder.Services.AddControllers();");
                     break;
                 }
@@ -763,7 +745,6 @@ namespace {projectName}.Web.Controllers
             {
                 if (lines[i].Contains("app.MapEndpoints();"))
                 {
-                    // Insert before this line
                     lines.Insert(i, "app.MapControllers();");
                     break;
                 }
@@ -778,22 +759,12 @@ namespace {projectName}.Web.Controllers
                 return;
 
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
-            
-            // Create the exception class
             CreateViolationException(projectName, parentDir);
-            
-            // Create the violation event and handler
             CreateViolationEvent(projectName, parentDir);
             CreateViolationEventHandler(projectName, parentDir);
-            
-            // Create the expression evaluator service (Interface in Application, Implementation in Infrastructure)
             CreateExpressionEvaluatorInterface(projectName, parentDir);
             CreateExpressionEvaluatorImplementation(projectName, parentDir, violationExpressions);
-            
-            // Create the violation evaluator implementation (no interface needed as it's a hosted service)
             CreateViolationEvaluatorImplementation(projectName, parentDir, violationExpressions);
-            
-            // Register the services
             RegisterViolationEvaluatorService(projectName, parentDir);
         }
 
@@ -890,8 +861,6 @@ public class ViolationDetectedEventHandler : INotificationHandler<ViolationDetec
         {{
             _logger.LogError(""Violation Action: {{Action}}"", notification.ViolationAction);
         }}
-
-        // For now, throw an exception when violation is detected
         throw new ViolationException(notification.ViolationMessage);
     }}
 }}";
@@ -1045,17 +1014,14 @@ public class ViolationEvaluatorService : BackgroundService
             catch (ViolationException vex)
             {{
                 _logger.LogError(vex, ""Violation detected during scheduled check"");
-                // Continue running even after violations are detected
             }}
             catch (OperationCanceledException)
             {{
-                // Expected when cancellation is requested
                 break;
             }}
             catch (Exception ex)
             {{
                 _logger.LogError(ex, ""Unexpected error during violation check"");
-                // Continue running even after unexpected errors
                 await Task.Delay(_checkInterval, stoppingToken);
             }}
         }}
@@ -1069,7 +1035,6 @@ public class ViolationEvaluatorService : BackgroundService
         
         foreach (var violation in violations)
         {{
-            // Publish violation event for each detected violation
             var violationEvent = new ViolationDetectedEvent(
                 violation.Message, 
                 violation.Expression, 
@@ -1095,8 +1060,6 @@ public class ViolationEvaluatorService : BackgroundService
         {
             var appDiPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "DependencyInjection.cs");
             var infraDiPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
-            
-            // Register ViolationEvaluatorService as hosted service in Application DI
             if (File.Exists(appDiPath))
             {
                 var appDiText = File.ReadAllText(appDiPath);
@@ -1116,8 +1079,6 @@ public class ViolationEvaluatorService : BackgroundService
                     }
                     File.WriteAllText(appDiPath, string.Join("\n", lines));
                 }
-
-                // Add using statements for Application DI
                 var appUsingStatement = $"using {projectName}.Application.Common.Services;";
                 if (!appDiText.Contains(appUsingStatement))
                 {
@@ -1135,8 +1096,6 @@ public class ViolationEvaluatorService : BackgroundService
                     }
                 }
             }
-
-            // Register ExpressionEvaluatorService in Infrastructure DI
             if (File.Exists(infraDiPath))
             {
                 var infraDiText = File.ReadAllText(infraDiPath);
@@ -1148,7 +1107,6 @@ public class ViolationEvaluatorService : BackgroundService
                     int addInfraIndex = lines.FindIndex(l => l.Contains("void AddInfrastructureServices"));
                     if (addInfraIndex != -1)
                     {
-                        // Find the opening brace of the method
                         while (addInfraIndex < lines.Count && !lines[addInfraIndex].Contains("{")) addInfraIndex++;
                         addInfraIndex++;
                         lines.Insert(addInfraIndex, $"        {infraRegistration}");
@@ -1156,8 +1114,6 @@ public class ViolationEvaluatorService : BackgroundService
                         File.WriteAllText(infraDiPath, string.Join("\n", lines));
                     }
                 }
-
-                // Add using statements for Infrastructure DI
                 var infraUsingStatements = new[]
                 {
                     $"using {projectName}.Application.Common.Interfaces;",
