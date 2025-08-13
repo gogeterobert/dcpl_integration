@@ -1,0 +1,31 @@
+flowchart TD
+  %% Presentation layer
+  subgraph Presentation [Presentation Layer]
+    Controller[/HTTP POST /violation-event/]
+  end
+
+  %% Application layer
+  subgraph AppLayer [Application Layer]
+    VES["ViolationEvaluatorService
+(IHostedService)
+EvaluateViolationExpressionsAsync()"]
+    CmdHandler[ViolationCommandHandler]
+    Emit[(Emit: DutyViolationEvent)]
+  end
+
+  %% Infrastructure layer
+  subgraph Infra [Infrastructure Layer]
+    IExpr["IExpressionEvaluator(interface)"]
+    ExprImpl["ExpressionEvaluatorImpl(executes expression)"]
+  end
+
+  %% Flows
+  Controller -->|maps request to ViolationCommand| CmdHandler
+  CmdHandler -->|emit| Emit
+
+  VES -->|calls EvaluateViolationExpressionsAsync| IExpr
+  IExpr -->|executes expression -> returns true| ExprImpl
+  VES -->|on true| Emit
+
+  %% Post-event
+  Emit -->|published to| Subscribers[(Subscribers / Handlers)]
