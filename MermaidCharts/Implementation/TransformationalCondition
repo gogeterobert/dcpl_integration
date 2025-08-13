@@ -1,0 +1,15 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+    P["Presentation Layer: User/API Trigger"] --> C1["Application Layer: Command Handler"]
+    C1 --> D1["Application Layer: Check Condition"]
+    D1 --> E1{"Condition True?"}
+    E1 -- Yes --> F1["Application Layer: Publish ViolationDetectedEvent"]
+    C2["ViolationEvaluatorService"] --> I["Infrastructure Layer: IExpressionEvaluator"]
+    I --> E1
+    E1 --> E2{"Expression True?"}
+    E2 -- Yes --> F2["Application Layer: Publish ViolationDetectedEvent"]
+    F1 --> H["Application Layer: Event Handlers & Subscribers"]
+    F2 --> H
