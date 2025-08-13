@@ -764,13 +764,15 @@ namespace {projectName}.Web.Controllers
             // Create the exception class
             CreateViolationException(projectName, parentDir);
             
-            // Create the interface
-            CreateViolationEvaluatorInterface(projectName, parentDir);
+            // Create the expression evaluator service (Interface in Application, Implementation in Infrastructure)
+            CreateExpressionEvaluatorInterface(projectName, parentDir);
+            CreateExpressionEvaluatorImplementation(projectName, parentDir, violationExpressions);
             
-            // Create the implementation
+            // Create the violation evaluator interface and implementation (both in Application)
+            CreateViolationEvaluatorInterface(projectName, parentDir);
             CreateViolationEvaluatorImplementation(projectName, parentDir, violationExpressions);
             
-            // Register the service
+            // Register the services
             RegisterViolationEvaluatorService(projectName, parentDir);
         }
 
@@ -802,6 +804,78 @@ public class ViolationException : Exception
             File.WriteAllText(exceptionFilePath, exceptionCode);
         }
 
+        private void CreateExpressionEvaluatorInterface(string projectName, string? parentDir)
+        {
+            var interfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Interfaces");
+            Directory.CreateDirectory(interfacesPath);
+            var interfaceFilePath = Path.Combine(interfacesPath, "IExpressionEvaluatorService.cs");
+
+            var interfaceCode = $@"namespace {projectName}.Application.Common.Interfaces;
+
+public interface IExpressionEvaluatorService
+{{
+    Task<List<string>> EvaluateViolationExpressionsAsync();
+}}";
+
+            File.WriteAllText(interfaceFilePath, interfaceCode);
+        }
+
+        private void CreateExpressionEvaluatorImplementation(string projectName, string? parentDir, List<string> violationExpressions)
+        {
+            var infraPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure");
+            Directory.CreateDirectory(infraPath);
+            var serviceFilePath = Path.Combine(infraPath, "ExpressionEvaluatorService.cs");
+
+            var evaluationMethods = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
+                $@"    private bool EvaluateExpression{index + 1}()
+    {{
+        try
+        {{
+            return {expr};
+        }}
+        catch (Exception ex)
+        {{
+            _logger.LogError(ex, ""Error evaluating violation expression: {expr.Replace("\"", "\\\"")}"");
+            return false;
+        }}
+    }}"));
+
+            var evaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
+                $@"        if (EvaluateExpression{index + 1}())
+        {{
+            violations.Add(""Violation detected: {expr.Replace("\"", "\\\"")}"");
+        }}"));
+
+            var serviceCode = $@"using Microsoft.Extensions.Logging;
+using {projectName}.Application.Common.Interfaces;
+
+namespace {projectName}.Infrastructure;
+
+public class ExpressionEvaluatorService : IExpressionEvaluatorService
+{{
+    private readonly ILogger<ExpressionEvaluatorService> _logger;
+
+    public ExpressionEvaluatorService(ILogger<ExpressionEvaluatorService> logger)
+    {{
+        _logger = logger;
+    }}
+
+    public async Task<List<string>> EvaluateViolationExpressionsAsync()
+    {{
+        var violations = new List<string>();
+        
+{evaluationCalls}
+        
+        await Task.CompletedTask;
+        return violations;
+    }}
+
+{evaluationMethods}
+}}";
+
+            File.WriteAllText(serviceFilePath, serviceCode);
+        }
+
         private void CreateViolationEvaluatorInterface(string projectName, string? parentDir)
         {
             var interfacesPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Interfaces");
@@ -824,27 +898,6 @@ public interface IViolationEvaluatorService
             Directory.CreateDirectory(servicesPath);
             var serviceFilePath = Path.Combine(servicesPath, "ViolationEvaluatorService.cs");
 
-            var evaluationMethods = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
-                $@"    private bool EvaluateExpression{index + 1}()
-    {{
-        try
-        {{
-            return {expr};
-        }}
-        catch (Exception ex)
-        {{
-            _logger.LogError(ex, ""Error evaluating violation expression: {expr.Replace("\"", "\\\"")}"");
-            return false;
-        }}
-    }}"));
-
-            var evaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
-                $@"        if (EvaluateExpression{index + 1}())
-        {{
-            _logger.LogError(""Violation detected: {expr.Replace("\"", "\\\"")}"");
-            throw new ViolationException(""Violation detected: {expr.Replace("\"", "\\\"")}"");
-        }}"));
-
             var serviceCode = $@"using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using {projectName}.Application.Common.Interfaces;
@@ -855,11 +908,15 @@ namespace {projectName}.Application.Common.Services;
 public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorService
 {{
     private readonly ILogger<ViolationEvaluatorService> _logger;
+    private readonly IExpressionEvaluatorService _expressionEvaluator;
     private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(1);
 
-    public ViolationEvaluatorService(ILogger<ViolationEvaluatorService> logger)
+    public ViolationEvaluatorService(
+        ILogger<ViolationEvaluatorService> logger,
+        IExpressionEvaluatorService expressionEvaluator)
     {{
         _logger = logger;
+        _expressionEvaluator = expressionEvaluator;
     }}
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -896,11 +953,21 @@ public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorS
 
     public async Task CheckViolationsAsync()
     {{
-{evaluationCalls}
+        var violations = await _expressionEvaluator.EvaluateViolationExpressionsAsync();
+        
+        foreach (var violation in violations)
+        {{
+            _logger.LogError(""{{Violation}}"", violation);
+        }}
+        
+        if (violations.Any())
+        {{
+            var allViolations = string.Join(""; "", violations);
+            throw new ViolationException(allViolations);
+        }}
+        
         await Task.CompletedTask;
     }}
-
-{evaluationMethods}
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {{
@@ -914,35 +981,35 @@ public class ViolationEvaluatorService : BackgroundService, IViolationEvaluatorS
 
         private void RegisterViolationEvaluatorService(string projectName, string? parentDir)
         {
-            var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "DependencyInjection.cs");
-            if (File.Exists(diPath))
+            var appDiPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "DependencyInjection.cs");
+            var infraDiPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
+            
+            // Register ViolationEvaluatorService as hosted service in Application DI
+            if (File.Exists(appDiPath))
             {
-                var diText = File.ReadAllText(diPath);
-                var registration = $"builder.Services.AddHostedService<ViolationEvaluatorService>();";
-                var singletonRegistration = $"builder.Services.AddSingleton<IViolationEvaluatorService>(provider => provider.GetRequiredService<ViolationEvaluatorService>());";
-                
-                if (!diText.Contains(registration))
+                var appDiText = File.ReadAllText(appDiPath);
+                var hostedRegistration = $"builder.Services.AddHostedService<ViolationEvaluatorService>();";
+
+                if (!appDiText.Contains(hostedRegistration))
                 {
-                    var lines = diText.Split('\n').ToList();
+                    var lines = appDiText.Split('\n').ToList();
                     for (int i = 0; i < lines.Count; i++)
                     {
                         if (lines[i].Contains("builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());"))
                         {
-                            lines.Insert(i, $"        {registration}");
-                            lines.Insert(i + 1, $"        {singletonRegistration}");
+                            lines.Insert(i, $"        {hostedRegistration}");
                             lines.Insert(i, "");
                             break;
                         }
                     }
-                    File.WriteAllText(diPath, string.Join("\n", lines));
+                    File.WriteAllText(appDiPath, string.Join("\n", lines));
                 }
 
-                // Add using statement
-                var usingStatement = @$"using {projectName}.Application.Common.Services;
-using {projectName}.Application.Common.Interfaces;";
-                if (!diText.Contains(usingStatement))
+                // Add using statements for Application DI
+                var appUsingStatement = $"using {projectName}.Application.Common.Services;";
+                if (!appDiText.Contains(appUsingStatement))
                 {
-                    var lines = File.ReadAllLines(diPath).ToList();
+                    var lines = File.ReadAllLines(appDiPath).ToList();
                     var lastUsingIndex = -1;
                     for (int i = 0; i < lines.Count; i++)
                     {
@@ -951,10 +1018,51 @@ using {projectName}.Application.Common.Interfaces;";
                     }
                     if (lastUsingIndex != -1)
                     {
-                        lines.Insert(lastUsingIndex + 1, usingStatement);
-                        File.WriteAllLines(diPath, lines);
+                        lines.Insert(lastUsingIndex + 1, appUsingStatement);
+                        File.WriteAllLines(appDiPath, lines);
                     }
                 }
+            }
+
+            // Register ExpressionEvaluatorService in Infrastructure DI
+            if (File.Exists(infraDiPath))
+            {
+                var infraDiText = File.ReadAllText(infraDiPath);
+                var infraRegistration = $"builder.Services.AddSingleton<IExpressionEvaluatorService, ExpressionEvaluatorService>();";
+                
+                if (!infraDiText.Contains(infraRegistration))
+                {
+                    var lines = infraDiText.Split('\n').ToList();
+                    int addInfraIndex = lines.FindIndex(l => l.Contains("void AddInfrastructureServices"));
+                    if (addInfraIndex != -1)
+                    {
+                        // Find the opening brace of the method
+                        while (addInfraIndex < lines.Count && !lines[addInfraIndex].Contains("{")) addInfraIndex++;
+                        addInfraIndex++;
+                        lines.Insert(addInfraIndex, $"        {infraRegistration}");
+                        lines.Insert(addInfraIndex, "");
+                        File.WriteAllText(infraDiPath, string.Join("\n", lines));
+                    }
+                }
+
+                // Add using statements for Infrastructure DI
+                var infraUsingStatements = new[]
+                {
+                    $"using {projectName}.Application.Common.Interfaces;",
+                    $"using {projectName}.Infrastructure;"
+                };
+
+                var currentInfraDiText = File.ReadAllText(infraDiPath);
+                var updated = false;
+                foreach (var usingStatement in infraUsingStatements)
+                {
+                    if (!currentInfraDiText.Contains(usingStatement))
+                    {
+                        currentInfraDiText = usingStatement + "\n" + currentInfraDiText;
+                        updated = true;
+                    }
+                }
+                if (updated) File.WriteAllText(infraDiPath, currentInfraDiText);
             }
         }
     }
