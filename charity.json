@@ -24,17 +24,19 @@
       "counterparty": "enrolledClient",
       "action": "#safeguardData",
       "violation": {
-        "event": "#dataBreach",
-        "expression": "DateTime.Now > new DateTime(2032, 8, 27)"
+        "event": "#dataBreach"
       }
     }
   },
   {
-    "position": "power",
-    "holder": "charity",
-    "action": "#delegateProcessing",
-    "consequence": {
-      "plus": "staffProcessing"
+    "condition": "dataProcessing",
+    "conclusion": {
+      "position": "power",
+      "holder": "charity",
+      "action": "#delegateProcessing",
+      "consequence": {
+        "plus": "staffProcessing"
+      }
     }
   },
   {
@@ -45,17 +47,19 @@
       "counterparty": "charity",
       "action": "#handleCompliantly",
       "violation": {
-        "event": "#insiderThreat",
-        "expression": "DateTime.Now > new DateTime(2025, 8, 27)"
+        "event": "#insiderDataBreach"
       }
     }
   },
   {
-    "position": "power",
-    "holder": "charity",
-    "action": "#shareWithProfessionals",
-    "consequence": {
-      "plus": "sharedTreatmentData"
+    "condition": "dataProcessing",
+    "conclusion": {
+      "position": "power",
+      "holder": "charity",
+      "action": "#shareWithProfessionals",
+      "consequence": {
+        "plus": "sharedTreatmentData"
+      }
     }
   },
   {
@@ -66,17 +70,8 @@
       "counterparty": "professionals",
       "action": "#provideNecessaryData",
       "violation": {
-        "event": "#sharingFailure",
-        "expression": "DateTime.Now > new DateTime(2025, 8, 27)"
+        "event": "#sharingFailure"
       }
-    }
-  },
-  {
-    "position": "power",
-    "holder": "professionals",
-    "action": "#demandAccess",
-    "consequence": {
-      "plus": "accessGranted"
     }
   },
   {
@@ -85,18 +80,10 @@
       "position": "duty",
       "holder": "charity",
       "counterparty": "regulators",
-      "action": "#reportData",
+      "action": "#validateCompliance",
       "violation": {
-        "event": "#nonCompliance"
+        "event": "#reportNoncompliance"
       }
-    }
-  },
-  {
-    "position": "power",
-    "holder": "regulators",
-    "action": "#audit",
-    "consequence": {
-      "plus": "complianceCheck"
     }
   },
   {
