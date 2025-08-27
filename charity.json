@@ -1,0 +1,110 @@
+[
+  {
+    "position": "power",
+    "holder": "client",
+    "action": "#enroll",
+    "consequence": {
+      "entity": "client",
+      "in": "enrolledClient"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledClient",
+    "action": "#giveConsent",
+    "consequence": {
+      "plus": "dataProcessing"
+    }
+  },
+  {
+    "condition": "dataProcessing",
+    "conclusion": {
+      "position": "duty",
+      "holder": "charity",
+      "counterparty": "enrolledClient",
+      "action": "#safeguardData",
+      "violation": {
+        "event": "#dataBreach",
+        "expression": "DateTime.Now > new DateTime(2032, 8, 27)"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "charity",
+    "action": "#delegateProcessing",
+    "consequence": {
+      "plus": "staffProcessing"
+    }
+  },
+  {
+    "condition": "staffProcessing",
+    "conclusion": {
+      "position": "duty",
+      "holder": "staff",
+      "counterparty": "charity",
+      "action": "#handleCompliantly",
+      "violation": {
+        "event": "#insiderThreat",
+        "expression": "DateTime.Now > new DateTime(2025, 8, 27)"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "charity",
+    "action": "#shareWithProfessionals",
+    "consequence": {
+      "plus": "sharedTreatmentData"
+    }
+  },
+  {
+    "condition": "sharedTreatmentData",
+    "conclusion": {
+      "position": "duty",
+      "holder": "charity",
+      "counterparty": "professionals",
+      "action": "#provideNecessaryData",
+      "violation": {
+        "event": "#sharingFailure",
+        "expression": "DateTime.Now > new DateTime(2025, 8, 27)"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "professionals",
+    "action": "#demandAccess",
+    "consequence": {
+      "plus": "accessGranted"
+    }
+  },
+  {
+    "condition": "dataProcessing",
+    "conclusion": {
+      "position": "duty",
+      "holder": "charity",
+      "counterparty": "regulators",
+      "action": "#reportData",
+      "violation": {
+        "event": "#nonCompliance"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "regulators",
+    "action": "#audit",
+    "consequence": {
+      "plus": "complianceCheck"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledClient",
+    "action": "#withdrawConsent",
+    "consequence": {
+      "minus": "dataProcessing"
+    }
+  }
+]
