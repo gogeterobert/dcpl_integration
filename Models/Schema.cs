@@ -21,7 +21,7 @@ public class DutyFrame : Frame
 public class TransformationalFrame : Frame
 {
     public string Condition { get; set; }
-    public DutyFrame Conclusion { get; set; }
+    public Frame? Conclusion { get; set; }
 }
 
 public class EventExpression

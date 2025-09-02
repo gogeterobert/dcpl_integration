@@ -19,7 +19,6 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new FrameJsonConverter());
         options.JsonSerializerOptions.Converters.Add(new EventJsonConverter());
-        options.JsonSerializerOptions.Converters.Add(new TransformationalFrameJsonConverter());
     });
     // Register FrameJsonConverter globally
     // builder.Services.AddControllers();

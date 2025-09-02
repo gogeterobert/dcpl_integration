@@ -6,6 +6,31 @@ using DCPLInterpreterV2.Models;
 
 public class FrameJsonConverter : JsonConverter<Frame>
 {
+    private static bool TryGetPropertyCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+        value = default;
+        return false;
+    }
+
+    private static JsonElement? GetPropertyCaseInsensitive(JsonElement element, string propertyName)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Value;
+            }
+        }
+        return null;
+    }
     public override Frame? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using (var doc = JsonDocument.ParseValue(ref reader))
@@ -16,7 +41,7 @@ public class FrameJsonConverter : JsonConverter<Frame>
             var optionsWithoutFrameConverter = new JsonSerializerOptions(options);
             // Remove only the FrameJsonConverter to prevent recursion, but keep EventJsonConverter and others
             var convertersToKeep = optionsWithoutFrameConverter.Converters
-                .Where(c => c.GetType() != typeof(FrameJsonConverter))
+                // .Where(c => c.GetType() != typeof(FrameJsonConverter))
                 .ToList();
             optionsWithoutFrameConverter.Converters.Clear();
             foreach (var converter in convertersToKeep)
@@ -24,7 +49,7 @@ public class FrameJsonConverter : JsonConverter<Frame>
                 optionsWithoutFrameConverter.Converters.Add(converter);
             }
             
-            if (root.TryGetProperty("position", out var positionProp))
+            if (TryGetPropertyCaseInsensitive(root, "position", out var positionProp))
             {
                 var position = positionProp.GetString();
                 if (string.Equals(position, "power", StringComparison.OrdinalIgnoreCase))
@@ -36,9 +61,26 @@ public class FrameJsonConverter : JsonConverter<Frame>
                     return JsonSerializer.Deserialize<DutyFrame>(root.GetRawText(), optionsWithoutFrameConverter);
                 }
             }
-            else if (root.TryGetProperty("condition", out var conditionProp))
+            else if (TryGetPropertyCaseInsensitive(root, "conclusion", out var conclusionProp))
             {
-                return JsonSerializer.Deserialize<TransformationalFrame>(root.GetRawText(), optionsWithoutFrameConverter);
+                if (TryGetPropertyCaseInsensitive(conclusionProp, "position", out var transformationalPositionProp))
+                {
+                    var position = transformationalPositionProp.GetString();
+                    Frame? frame = null;
+                    if (string.Equals(position, "power", StringComparison.OrdinalIgnoreCase))
+                    {
+                        frame = JsonSerializer.Deserialize<PowerFrame>(conclusionProp.GetRawText(), optionsWithoutFrameConverter);
+                    }
+                    else if (string.Equals(position, "duty", StringComparison.OrdinalIgnoreCase))
+                    {
+                        frame = JsonSerializer.Deserialize<DutyFrame>(conclusionProp.GetRawText(), optionsWithoutFrameConverter);
+                    }
+                    return new TransformationalFrame
+                    {
+                        Condition = GetPropertyCaseInsensitive(root, "condition")?.GetString() ?? string.Empty,
+                        Conclusion = frame,
+                    };
+                }
             }
             return null;
         }
@@ -50,7 +92,7 @@ public class FrameJsonConverter : JsonConverter<Frame>
         var optionsWithoutFrameConverter = new JsonSerializerOptions(options);
         // Remove only the FrameJsonConverter to prevent recursion, but keep EventJsonConverter and others
         var convertersToKeep = optionsWithoutFrameConverter.Converters
-            .Where(c => c.GetType() != typeof(FrameJsonConverter))
+            // .Where(c => c.GetType() != typeof(FrameJsonConverter))
             .ToList();
         optionsWithoutFrameConverter.Converters.Clear();
         foreach (var converter in convertersToKeep)

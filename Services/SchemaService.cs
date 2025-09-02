@@ -25,7 +25,6 @@ namespace DCPLInterpreterV2.Services
             };
             _jsonOptions.Converters.Add(new FrameJsonConverter());
             _jsonOptions.Converters.Add(new EventJsonConverter());
-            _jsonOptions.Converters.Add(new TransformationalFrameJsonConverter());
         }
 
         public void AddAndReplaceSchema(List<Frame> schema)
@@ -64,15 +63,15 @@ namespace DCPLInterpreterV2.Services
                .SelectMany(tf => new List<ActionHolder>
                {
                     new ActionHolder {
-                        Holder = tf?.Conclusion?.Holder ?? string.Empty,
-                        Action = tf?.Conclusion?.Action ?? string.Empty,
+                        Holder = (tf?.Conclusion as PowerFrame)?.Holder ?? string.Empty,
+                        Action = (tf?.Conclusion as PowerFrame)?.Action ?? string.Empty,
                         Condition = tf?.Condition ?? string.Empty
                     },
                     new ActionHolder {
-                        Holder = tf?.Conclusion?.Counterparty ?? string.Empty,
-                        Action = tf?.Conclusion?.Violation?.Event ?? string.Empty,
+                        Holder = (tf?.Conclusion as DutyFrame)?.Counterparty ?? string.Empty,
+                        Action = (tf?.Conclusion as DutyFrame)?.Violation?.Event ?? string.Empty,
                         Condition = tf?.Condition ?? string.Empty,
-                        ViolationExpression = tf?.Conclusion?.Violation?.Expression
+                        ViolationExpression = (tf?.Conclusion as DutyFrame)?.Violation?.Expression
                     }
                })
                .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression))
@@ -118,10 +117,17 @@ namespace DCPLInterpreterV2.Services
             var transformationalFrames = directives.Select(directiveEntity =>
                     JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(t => t?.Conclusion != null).ToList();
-            schemaEntities.AddRange(transformationalFrames.Select(transformationFrame =>
-                new Entity
+            schemaEntities.AddRange(transformationalFrames.SelectMany(transformationFrame =>
+                new List<Entity>
                 {
-                    Holder = transformationFrame?.Conclusion?.Holder ?? string.Empty
+                    new Entity
+                    {
+                        Holder = (transformationFrame?.Conclusion as DutyFrame)?.Holder ?? string.Empty
+                    },
+                    new Entity
+                    {
+                        Holder = ((transformationFrame?.Conclusion as PowerFrame)?.Consequence as PlusProductEvent)?.Plus ?? string.Empty
+                    }
                 })
                 .Where(e => !string.IsNullOrEmpty(e.Holder))
                 .Distinct(new EntityEqualityComparer()).ToList());
