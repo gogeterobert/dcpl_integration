@@ -22,6 +22,18 @@
       "position": "duty",
       "holder": "charity",
       "counterparty": "enrolledClient",
+      "action": "#deleteDataAfterNoLongerNeccesary",
+      "violation": {
+        "expression": "DateTime.Now > new DateTime(2026, 1, 1)"
+      }
+    }
+  },
+  {
+    "condition": "dataProcessing",
+    "conclusion": {
+      "position": "duty",
+      "holder": "charity",
+      "counterparty": "enrolledClient",
       "action": "#safeguardData",
       "violation": {
         "event": "#dataBreach"
