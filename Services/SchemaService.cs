@@ -47,7 +47,7 @@ namespace DCPLInterpreterV2.Services
                 JsonSerializer.Deserialize<PowerFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(d => !string.IsNullOrEmpty(d?.Holder)).ToList();
 
-            var powerActions = powerFrames.SelectMany(powerFrame => new List<ActionHolder>
+            var actionHolders = powerFrames.SelectMany(powerFrame => new List<ActionHolder>
                 {
                     new ActionHolder {
                         Holder = powerFrame?.Holder ?? string.Empty,
@@ -56,10 +56,30 @@ namespace DCPLInterpreterV2.Services
                     }
                 }).Where(d => !string.IsNullOrEmpty(d.Action)).ToList();
 
+            // Process direct DutyFrames
+            var dutyFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<DutyFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Counterparty)).ToList();
+
+            actionHolders.AddRange(dutyFrames.SelectMany(dutyFrame => new List<ActionHolder>
+                {
+                    new ActionHolder {
+                        Holder = dutyFrame?.Holder ?? string.Empty,
+                        Action = dutyFrame?.Action ?? string.Empty
+                    },
+                    new ActionHolder {
+                        Holder = dutyFrame?.Counterparty ?? string.Empty,
+                        ViolationExpression = dutyFrame?.Violation?.Expression,
+                        ViolationEvent = dutyFrame?.Violation?.Event
+                    }
+                })
+                .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression))
+                .ToList());
+
             var transformationFrames = directives.Select(directiveEntity =>
                 JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
             ).Where(d => d?.Conclusion != null).ToList();
-            powerActions.AddRange(transformationFrames
+            actionHolders.AddRange(transformationFrames
                .SelectMany(tf => new List<ActionHolder>
                {
                     new ActionHolder {
@@ -69,15 +89,15 @@ namespace DCPLInterpreterV2.Services
                     },
                     new ActionHolder {
                         Holder = (tf?.Conclusion as DutyFrame)?.Counterparty ?? string.Empty,
-                        Action = (tf?.Conclusion as DutyFrame)?.Violation?.Event ?? string.Empty,
                         Condition = tf?.Condition ?? string.Empty,
-                        ViolationExpression = (tf?.Conclusion as DutyFrame)?.Violation?.Expression
+                        ViolationExpression = (tf?.Conclusion as DutyFrame)?.Violation?.Expression,
+                        ViolationEvent = (tf?.Conclusion as DutyFrame)?.Violation?.Event
                     }
                })
-               .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression))
+               .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression) || !string.IsNullOrEmpty(a.ViolationEvent))
                .ToList());
 
-            return powerActions;
+            return actionHolders;
         }
 
         public List<string> GetViolationExpressions()
@@ -277,10 +297,9 @@ namespace {projectName}.Web.Controllers
 ";
             foreach (var action in actionHolders)
             {
-                var validActionName = string.Concat(action.Action.Where(char.IsLetterOrDigit));
+                string? validActionName = GetActionNameForEndpoint(action);
                 if (string.IsNullOrWhiteSpace(validActionName))
                     continue;
-                validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
 
                 controllerClass += $@"
         [HttpPost(""{validActionName}"")]
@@ -300,7 +319,7 @@ namespace {projectName}.Web.Controllers
 
             foreach (var action in actionHolders)
             {
-                string validActionName = GetValidNaming(action.Action);
+                string? validActionName = GetActionNameForEndpoint(action);
                 if (string.IsNullOrWhiteSpace(validActionName))
                 {
                     continue;
@@ -316,13 +335,35 @@ namespace {projectName}.Web.Controllers
             }
         }
 
-        private static string GetValidNaming(string naming)
+        private static string? GetValidNaming(string naming)
         {
             var validActionName = string.Concat(naming.Where(char.IsLetterOrDigit));
             if (string.IsNullOrWhiteSpace(validActionName))
                 return null;
             validActionName = char.ToUpper(validActionName[0]) + validActionName.Substring(1);
             return validActionName;
+        }
+
+        private static string? GetActionNameForEndpoint(ActionHolder actionHolder)
+        {
+            // Priority: Action > ViolationEvent > ViolationExpression
+            if (!string.IsNullOrWhiteSpace(actionHolder.Action))
+            {
+                return GetValidNaming(actionHolder.Action);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(actionHolder.ViolationEvent))
+            {
+                return GetValidNaming($"Violation{actionHolder.ViolationEvent}");
+            }
+            
+            if (!string.IsNullOrWhiteSpace(actionHolder.ViolationExpression))
+            {
+                // Generate a simple name for violation expressions
+                return "ViolationExpression";
+            }
+            
+            return null;
         }
 
         private string GetActionCodeBasedOnFrameEventType(ActionHolder actionHolder)
@@ -337,6 +378,19 @@ namespace {projectName}.Web.Controllers
                 
                 await _mediator.Publish(violationEvent, cancellationToken);
                 return ""Violation action executed"";
+                ";
+            }
+
+            if (!string.IsNullOrEmpty(actionHolder.ViolationEvent))
+            {
+                return $@"
+                var violationEvent = new Application.Common.Events.ViolationDetectedEvent(
+                    ""Violation event '{actionHolder.ViolationEvent}' was triggered"",
+                    null,
+                    ""{actionHolder.Action}"");
+                
+                await _mediator.Publish(violationEvent, cancellationToken);
+                return ""Violation event executed"";
                 ";
             }
 
@@ -546,7 +600,10 @@ namespace {projectName}.Infrastructure
             }
 
             var groupedByHolder = actionHolders
-                .Where(ah => !string.IsNullOrWhiteSpace(ah.Holder) && !string.IsNullOrWhiteSpace(ah.Action))
+                .Where(ah => !string.IsNullOrWhiteSpace(ah.Holder) && 
+                           (!string.IsNullOrWhiteSpace(ah.Action) || 
+                            !string.IsNullOrWhiteSpace(ah.ViolationExpression) || 
+                            !string.IsNullOrWhiteSpace(ah.ViolationEvent)))
                 .GroupBy(ah => ah.Holder)
                 .ToList();
 
@@ -558,7 +615,9 @@ namespace {projectName}.Infrastructure
                 validHolderName = char.ToUpper(validHolderName[0]) + validHolderName.Substring(1);
 
                 var actions = holderGroup
-                    .Where(ah => !string.IsNullOrWhiteSpace(ah.Action))
+                    .Where(ah => !string.IsNullOrWhiteSpace(ah.Action) || 
+                               !string.IsNullOrWhiteSpace(ah.ViolationExpression) || 
+                               !string.IsNullOrWhiteSpace(ah.ViolationEvent))
                     .Distinct()
                     .ToList();
 
