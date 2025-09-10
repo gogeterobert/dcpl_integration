@@ -97,6 +97,37 @@ namespace DCPLInterpreterV2.Services
                .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression) || !string.IsNullOrEmpty(a.ViolationEvent))
                .ToList());
 
+            // Process CompoundFrames
+            var compoundFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<CompoundFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Compound) && d?.Content?.Any() == true).ToList();
+
+            actionHolders.AddRange(compoundFrames
+                .SelectMany(cf => cf?.Content?.SelectMany(contentFrame => new List<ActionHolder>
+                {
+                    new ActionHolder {
+                        Holder = (contentFrame as PowerFrame)?.Holder ?? string.Empty,
+                        Action = (contentFrame as PowerFrame)?.Action ?? string.Empty,
+                        Condition = cf.Compound, // Use compound name as condition
+                        Consequence = (contentFrame as PowerFrame)?.Consequence
+                    },
+                    new ActionHolder {
+                        Holder = (contentFrame as DutyFrame)?.Holder ?? string.Empty,
+                        Action = (contentFrame as DutyFrame)?.Action ?? string.Empty,
+                        Condition = cf.Compound, // Use compound name as condition
+                        ViolationExpression = (contentFrame as DutyFrame)?.Violation?.Expression,
+                        ViolationEvent = (contentFrame as DutyFrame)?.Violation?.Event
+                    },
+                    new ActionHolder {
+                        Holder = (contentFrame as DutyFrame)?.Counterparty ?? string.Empty,
+                        Condition = cf.Compound, // Use compound name as condition
+                        ViolationExpression = (contentFrame as DutyFrame)?.Violation?.Expression,
+                        ViolationEvent = (contentFrame as DutyFrame)?.Violation?.Event
+                    }
+                }) ?? Enumerable.Empty<ActionHolder>())
+                .Where(a => !string.IsNullOrEmpty(a.Action) || !string.IsNullOrEmpty(a.ViolationExpression) || !string.IsNullOrEmpty(a.ViolationEvent))
+                .ToList());
+
             return actionHolders;
         }
 
@@ -149,6 +180,24 @@ namespace DCPLInterpreterV2.Services
                         Holder = ((transformationFrame?.Conclusion as PowerFrame)?.Consequence as PlusProductEvent)?.Plus ?? string.Empty
                     }
                 })
+                .Where(e => !string.IsNullOrEmpty(e.Holder))
+                .Distinct(new EntityEqualityComparer()).ToList());
+
+            // Process CompoundFrames for entities
+            var compoundFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<CompoundFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Compound) && d?.Content?.Any() == true).ToList();
+
+            schemaEntities.AddRange(compoundFrames
+                .SelectMany(cf => cf?.Content?.SelectMany(contentFrame => new List<Entity>
+                {
+                    new Entity { Holder = (contentFrame as PowerFrame)?.Holder ?? string.Empty },
+                    new Entity { Holder = (contentFrame as DutyFrame)?.Holder ?? string.Empty },
+                    new Entity { Holder = (contentFrame as DutyFrame)?.Counterparty ?? string.Empty },
+                    new Entity { Holder = ((contentFrame as PowerFrame)?.Consequence as PlusProductEvent)?.Plus ?? string.Empty },
+                    new Entity { Holder = ((contentFrame as PowerFrame)?.Consequence as NamingEvent)?.In ?? string.Empty },
+                    new Entity { Holder = cf.Compound } // Add the compound name itself as an entity
+                }) ?? Enumerable.Empty<Entity>())
                 .Where(e => !string.IsNullOrEmpty(e.Holder))
                 .Distinct(new EntityEqualityComparer()).ToList());
 

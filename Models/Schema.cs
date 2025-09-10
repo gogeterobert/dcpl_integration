@@ -24,6 +24,13 @@ public class TransformationalFrame : Frame
     public Frame? Conclusion { get; set; }
 }
 
+public class CompoundFrame : Frame
+{
+    public string Compound { get; set; }
+    public List<string> Params { get; set; } = new();
+    public List<Frame> Content { get; set; } = new();
+}
+
 public class EventExpression
 {
     public string? Expression { get; set; }

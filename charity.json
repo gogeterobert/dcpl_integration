@@ -17,39 +17,53 @@
     }
   },
   {
-    "condition": "dataProcessing",
-    "conclusion": {
-      "position": "duty",
-      "holder": "charity",
-      "counterparty": "enrolledClient",
-      "action": "#deleteDataAfterNoLongerNeccesary",
-      "violation": {
-        "expression": "DateTime.Now > new DateTime(2026, 1, 1)"
+    "compound": "dataProcessing",
+    "params": ["charity", "enrolledClient", "regulators"],
+    "content": [
+      {
+        "position": "duty",
+        "holder": "charity",
+        "counterparty": "enrolledClient",
+        "action": "#deleteDataAfterNoLongerNeccesary",
+        "violation": {
+          "expression": "DateTime.Now > new DateTime(2026, 1, 1)"
+        }
+      },
+      {
+        "position": "duty",
+        "holder": "charity",
+        "counterparty": "enrolledClient",
+        "action": "#safeguardData",
+        "violation": {
+          "event": "#dataBreach"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "charity",
+        "action": "#delegateProcessing",
+        "consequence": {
+          "plus": "staffProcessing"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "charity",
+        "action": "#shareWithProfessionals",
+        "consequence": {
+          "plus": "sharedTreatmentData"
+        }
+      },
+      {
+        "position": "duty",
+        "holder": "charity",
+        "counterparty": "regulators",
+        "action": "#validateCompliance",
+        "violation": {
+          "event": "#reportNoncompliance"
+        }
       }
-    }
-  },
-  {
-    "condition": "dataProcessing",
-    "conclusion": {
-      "position": "duty",
-      "holder": "charity",
-      "counterparty": "enrolledClient",
-      "action": "#safeguardData",
-      "violation": {
-        "event": "#dataBreach"
-      }
-    }
-  },
-  {
-    "condition": "dataProcessing",
-    "conclusion": {
-      "position": "power",
-      "holder": "charity",
-      "action": "#delegateProcessing",
-      "consequence": {
-        "plus": "staffProcessing"
-      }
-    }
+    ]
   },
   {
     "condition": "staffProcessing",
@@ -64,17 +78,6 @@
     }
   },
   {
-    "condition": "dataProcessing",
-    "conclusion": {
-      "position": "power",
-      "holder": "charity",
-      "action": "#shareWithProfessionals",
-      "consequence": {
-        "plus": "sharedTreatmentData"
-      }
-    }
-  },
-  {
     "condition": "sharedTreatmentData",
     "conclusion": {
       "position": "duty",
@@ -83,18 +86,6 @@
       "action": "#provideNecessaryData",
       "violation": {
         "event": "#sharingFailure"
-      }
-    }
-  },
-  {
-    "condition": "dataProcessing",
-    "conclusion": {
-      "position": "duty",
-      "holder": "charity",
-      "counterparty": "regulators",
-      "action": "#validateCompliance",
-      "violation": {
-        "event": "#reportNoncompliance"
       }
     }
   },

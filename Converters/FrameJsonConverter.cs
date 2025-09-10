@@ -61,6 +61,10 @@ public class FrameJsonConverter : JsonConverter<Frame>
                     return JsonSerializer.Deserialize<DutyFrame>(root.GetRawText(), optionsWithoutFrameConverter);
                 }
             }
+            else if (TryGetPropertyCaseInsensitive(root, "compound", out var compoundProp))
+            {
+                return JsonSerializer.Deserialize<CompoundFrame>(root.GetRawText(), optionsWithoutFrameConverter);
+            }
             else if (TryGetPropertyCaseInsensitive(root, "conclusion", out var conclusionProp))
             {
                 if (TryGetPropertyCaseInsensitive(conclusionProp, "position", out var transformationalPositionProp))
@@ -107,6 +111,10 @@ public class FrameJsonConverter : JsonConverter<Frame>
         else if (value is DutyFrame duty)
         {
             JsonSerializer.Serialize(writer, duty, optionsWithoutFrameConverter);
+        }
+        else if (value is CompoundFrame compound)
+        {
+            JsonSerializer.Serialize(writer, compound, optionsWithoutFrameConverter);
         }
         else if (value is TransformationalFrame transformational)
         {
