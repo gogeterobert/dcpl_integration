@@ -1,0 +1,27 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+ subgraph Presentation["Presentation Layer"]
+        Controller["HTTP POST /{action}/"]
+  end
+ subgraph App["Application Layer"]
+        CmdHandler["CommandHandler"]
+        EntityCheck["Entity Validation"]
+        ConditionCheck["Condition/Compound State Validation"]
+        ActionExec[("Business Logic Execution")]
+        OtherApplicationEvents
+  end
+ subgraph Infra["Infrastructure Layer"]
+        DbCtx[("ApplicationDbContext Holding System State")]
+  end
+    Controller -- maps request --> CmdHandler
+    OtherApplicationEvents --> CmdHandler
+    CmdHandler --> EntityCheck
+    EntityCheck -- queries --> DbCtx
+    EntityCheck -- entity missing --> NotFoundEx[["Throw NotFoundException"]]
+    EntityCheck -- entity exists --> ConditionCheck
+    ConditionCheck -- queries --> DbCtx
+    ConditionCheck -- condition not met --> NotFoundEx
+    ConditionCheck -- condition met --> ActionExec
