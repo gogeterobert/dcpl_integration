@@ -1,0 +1,20 @@
+---
+config:
+  layout: dagre
+---
+flowchart TD
+ subgraph Schema["Schema Interpretation"]
+        SchemaService["SchemaService parses DCPL JSON"]
+        ActionHolders["Identify ActionHolders (entities with actions)"]
+        SchemaEntities["Identify Entities (entities and some objects)"]
+  end
+ subgraph CodeGen["Code Generation"]
+        Controllers["Controllers (API Endpoints)"]
+        Commands["Commands (MediatR)"]
+        Handlers["Handlers (Business Logic)"]
+        Entities["Entities (DB Models)"]
+        Validation["Validation (Compliance Checks)"]
+  end
+    SchemaService --> ActionHolders & SchemaEntities
+    ActionHolders --> Controllers & Commands & Handlers
+    SchemaEntities --> Entities & Validation
