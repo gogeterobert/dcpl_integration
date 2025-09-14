@@ -1,0 +1,107 @@
+[
+  {
+    "position": "power",
+    "holder": "patient",
+    "action": "#register",
+    "consequence": {
+      "entity": "patient",
+      "in": "enrolledPatient"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#giveExplicitConsent",
+    "consequence": {
+      "plus": "dataProcessing"
+    }
+  },
+  {
+    "compound": "dataProcessing",
+    "params": ["medCare", "enrolledPatient", "thirdParties"],
+    "content": [
+      {
+        "position": "duty",
+        "holder": "medCare",
+        "counterparty": "enrolledPatient",
+        "action": "#providePrivacyNotice",
+        "violation": {
+          "event": "#nonInformativeNotice"
+        }
+      },
+      {
+        "position": "duty",
+        "holder": "medCare",
+        "counterparty": "enrolledPatient",
+        "action": "#implementDataMinimization",
+        "violation": {
+          "event": "#excessiveDataCollection"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#shareWithThirdParties",
+        "consequence": {
+          "plus": "sharedPatientData"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "enrolledPatient",
+        "action": "#requestAccess",
+        "consequence": {
+          "plus": {
+            "position": "duty",
+            "holder": "medCare",
+            "counterparty": "enrolledPatient",
+            "action": "#respondToAccessRequest",
+            "violation": {
+              "expression": "DateTime.Now > requestDate.AddMonths(1)"
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "condition": "sharedPatientData",
+    "conclusion": {
+      "position": "duty",
+      "holder": "thirdParties",
+      "counterparty": "medCare",
+      "action": "#complyWithDPA",
+      "violation": {
+        "event": "#dpaNoncompliance"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#optInReminders",
+    "consequence": {
+      "plus": "remindersProcessing"
+    }
+  },
+  {
+    "condition": "remindersProcessing",
+    "conclusion": {
+      "position": "duty",
+      "holder": "medCare",
+      "counterparty": "enrolledPatient",
+      "action": "#sendRemindersCompliantly",
+      "violation": {
+        "event": "#unauthorizedMarketing"
+      }
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#withdrawConsent",
+    "consequence": {
+      "minus": "dataProcessing"
+    }
+  }
+]
