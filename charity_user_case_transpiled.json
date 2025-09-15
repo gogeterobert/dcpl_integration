@@ -1,0 +1,147 @@
+[
+  {
+    "position": "power",
+    "holder": "patient",
+    "action": "#register",
+    "consequence": {
+      "entity": "patient",
+      "in": "enrolledPatient"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#giveExplicitConsent",
+    "consequence": {
+      "plus": "dataProcessing"
+    }
+  },
+  {
+    "compound": "dataProcessing",
+    "params": ["medCare", "enrolledPatient", "thirdParties"],
+    "content": [
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#providePrivacyNotice",
+        "consequence": {
+          "plus": "d1.fulfilled"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "enrolledPatient",
+        "action": "#reportFailureToProvideNotice",
+        "consequence": {
+          "plus": "d1.violated"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#implementDataMinimization",
+        "consequence": {
+          "plus": "d2.fulfilled"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "enrolledPatient",
+        "action": "#reportExcessiveDataCollection",
+        "consequence": {
+          "plus": "d2.violated"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#shareWithThirdParties",
+        "consequence": {
+          "plus": "sharedPatientData"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "enrolledPatient",
+        "action": "#requestAccess",
+        "consequence": {
+          "plus": [
+            {
+              "position": "power",
+              "holder": "medCare",
+              "action": "#respondToAccessRequest",
+              "consequence": {
+                "plus": "d3.fulfilled"
+              }
+            },
+            {
+              "position": "expression",
+              "expression": "DateTime.Now > requestDate.AddMonths(1)",
+              "consequence": {
+                "plus": "d3.violated"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "condition": "sharedPatientData",
+    "conclusion": [
+      {
+        "position": "power",
+        "holder": "thirdParties",
+        "action": "#complyWithDPA",
+        "consequence": {
+          "plus": "d4.fulfilled"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#reportDpaNoncompliance",
+        "consequence": {
+          "plus": "d4.violated"
+        }
+      }
+    ]
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#optInReminders",
+    "consequence": {
+      "plus": "remindersProcessing"
+    }
+  },
+  {
+    "condition": "remindersProcessing",
+    "conclusion": [
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#sendRemindersCompliantly",
+        "consequence": {
+          "plus": "d5.fulfilled"
+        }
+      },
+      {
+        "position": "power",
+        "holder": "enrolledPatient",
+        "action": "#reportUnauthorizedMarketing",
+        "consequence": {
+          "plus": "d5.violated"
+        }
+      }
+    ]
+  },
+  {
+    "position": "power",
+    "holder": "enrolledPatient",
+    "action": "#withdrawConsent",
+    "consequence": {
+      "minus": "dataProcessing"
+    }
+  }
+]
