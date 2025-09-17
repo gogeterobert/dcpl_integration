@@ -65,30 +65,40 @@
         "holder": "enrolledPatient",
         "action": "#requestAccess",
         "consequence": {
-          "plus": [
-            {
-              "position": "power",
-              "holder": "medCare",
-              "action": "#respondToAccessRequest",
-              "consequence": {
-                "plus": "d3.fulfilled"
-              }
-            },
-            {
-              "position": "expression",
-              "expression": "DateTime.Now > requestDate.AddMonths(1)",
-              "consequence": {
-                "plus": "d3.violated"
-              }
-            }
-          ]
+          "plus": "respondAccessRequest"
+        }
+      }
+    ]
+  },
+  {
+    "compound": "respondAccessRequest",
+    "params": ["medCare", "enrolledPatient", "thirdParties"],
+    "content": [
+      {
+        "position": "power",
+        "holder": "medCare",
+        "action": "#respondToAccessRequest",
+        "consequence": {
+          "plus": "d3.fulfilled"
+        }
+      },
+      {
+        "position": "expression",
+        "expression": "DateTime.Now > requestDate.AddMonths(1)",
+        "consequence": {
+          "plus": "d3.violated"
         }
       }
     ]
   },
   {
     "condition": "sharedPatientData",
-    "conclusion": [
+    "conclusion": "compianceChecking"
+  },
+  {
+    "compound": "compianceChecking",
+    "params": ["medCare", "enrolledPatient", "thirdParties"],
+    "content": [
       {
         "position": "power",
         "holder": "thirdParties",
@@ -117,7 +127,12 @@
   },
   {
     "condition": "remindersProcessing",
-    "conclusion": [
+    "conclusion": "sendingReminders"
+  },
+  {
+    "compound": "sendingReminders",
+    "params": ["medCare", "enrolledPatient", "thirdParties"],
+    "content": [
       {
         "position": "power",
         "holder": "medCare",
