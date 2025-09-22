@@ -65,9 +65,32 @@ public class FrameJsonConverter : JsonConverter<Frame>
             {
                 return JsonSerializer.Deserialize<CompoundFrame>(root.GetRawText(), optionsWithoutFrameConverter);
             }
+            else if (TryGetPropertyCaseInsensitive(root, "condition", out var conditionProp) && 
+                     TryGetPropertyCaseInsensitive(root, "consequence", out var consequenceProp) &&
+                     !TryGetPropertyCaseInsensitive(root, "conclusion", out var _))
+            {
+                // This is a ReactiveFrame (has condition + consequence, but no conclusion)
+                return JsonSerializer.Deserialize<ReactiveFrame>(root.GetRawText(), optionsWithoutFrameConverter);
+            }
             else if (TryGetPropertyCaseInsensitive(root, "conclusion", out var conclusionProp))
             {
-                if (TryGetPropertyCaseInsensitive(conclusionProp, "position", out var transformationalPositionProp))
+                // Check if conclusion is a string (compound frame reference) or an object (frame definition)
+                if (conclusionProp.ValueKind == JsonValueKind.String)
+                {
+                    // Conclusion is a string referencing a compound frame
+                    return new TransformationalFrame
+                    {
+                        Condition = GetPropertyCaseInsensitive(root, "condition")?.GetString() ?? string.Empty,
+                        Conclusion = new CompoundFrame
+                        {
+                            Compound = conclusionProp.GetString() ?? string.Empty,
+                            Params = new List<string>(),
+                            Content = new List<Frame>()
+                        }
+                    };
+                }
+                else if (conclusionProp.ValueKind == JsonValueKind.Object && 
+                         TryGetPropertyCaseInsensitive(conclusionProp, "position", out var transformationalPositionProp))
                 {
                     var position = transformationalPositionProp.GetString();
                     Frame? frame = null;
@@ -111,6 +134,10 @@ public class FrameJsonConverter : JsonConverter<Frame>
         else if (value is DutyFrame duty)
         {
             JsonSerializer.Serialize(writer, duty, optionsWithoutFrameConverter);
+        }
+        else if (value is ReactiveFrame reactive)
+        {
+            JsonSerializer.Serialize(writer, reactive, optionsWithoutFrameConverter);
         }
         else if (value is CompoundFrame compound)
         {

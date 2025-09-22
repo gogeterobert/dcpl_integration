@@ -6,7 +6,7 @@ using DCPLInterpreterV2.Interfaces;
 using DCPLInterpreterV2.Models;
 
 namespace DCPLInterpreterV2.Services
-{    
+{
     public class SchemaService : ISchemaService
     {
         private readonly JsonSerializerOptions _jsonOptions;
@@ -133,11 +133,48 @@ namespace DCPLInterpreterV2.Services
 
         public List<string> GetViolationExpressions()
         {
-            return GetActionHolders()
+            var violationExpressions = new List<string>();
+
+            // Get violations from ActionHolders (DutyFrames, etc.)
+            violationExpressions.AddRange(GetActionHolders()
                 .Where(actionHolder => !string.IsNullOrEmpty(actionHolder.ViolationExpression))
                 .Select(actionHolder => actionHolder.ViolationExpression!)
-                .Distinct()
-                .ToList();
+                .Distinct());
+
+            // Get violations from ReactiveFrames with expression conditions
+            var directives = _context.Directives.ToList();
+            var reactiveFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<ReactiveFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Condition)).ToList();
+
+            violationExpressions.AddRange(reactiveFrames
+                .Where(rf => IsExpressionCondition(rf?.Condition ?? string.Empty))
+                .Select(rf => rf?.Condition ?? string.Empty)
+                .Where(expr => !string.IsNullOrEmpty(expr)));
+
+            var compoundFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<CompoundFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Compound) && d?.Content?.Any() == true).ToList();
+
+            violationExpressions.AddRange(compoundFrames
+                .SelectMany(cf => cf?.Content?.SelectMany(contentFrame =>
+                    contentFrame is ReactiveFrame rf && IsExpressionCondition(rf.Condition) ? new List<string> { rf.Condition } :
+                    Enumerable.Empty<string>()) ?? Enumerable.Empty<string>()
+                )
+                .Where(expr => !string.IsNullOrEmpty(expr)));
+
+            return violationExpressions.Distinct().ToList();
+        }
+
+        private bool IsExpressionCondition(string condition)
+        {
+            // Check for null or empty condition first
+            if (string.IsNullOrWhiteSpace(condition))
+                return false;
+                
+            // Simple heuristic: if it contains comparison operators, parentheses, or method calls, it's likely an expression
+            return condition.Contains(">") || condition.Contains("<") || condition.Contains("=") || 
+                   condition.Contains("(") || condition.Contains(".") || condition.Contains("&&") || condition.Contains("||");
         }
 
         public List<string> GetHolders()
@@ -196,10 +233,32 @@ namespace DCPLInterpreterV2.Services
                     new Entity { Holder = (contentFrame as DutyFrame)?.Counterparty ?? string.Empty },
                     new Entity { Holder = ((contentFrame as PowerFrame)?.Consequence as PlusProductEvent)?.Plus ?? string.Empty },
                     new Entity { Holder = ((contentFrame as PowerFrame)?.Consequence as NamingEvent)?.In ?? string.Empty },
-                    new Entity { Holder = cf.Compound } // Add the compound name itself as an entity
+                    new Entity { Holder = cf.Compound }, // Add the compound name itself as an entity
+                    // Add ReactiveFrame consequences from CompoundFrames
+                    new Entity { Holder = ((contentFrame as ReactiveFrame)?.Consequence as PlusProductEvent)?.Plus ?? string.Empty },
+                    new Entity { Holder = ((contentFrame as ReactiveFrame)?.Consequence as NamingEvent)?.In ?? string.Empty }
                 }) ?? Enumerable.Empty<Entity>())
                 .Where(e => !string.IsNullOrEmpty(e.Holder))
                 .Distinct(new EntityEqualityComparer()).ToList());
+
+            // Process ReactiveFrames for entities (both top-level and nested in compounds)
+            var reactiveFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<ReactiveFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Condition)).ToList();
+
+            // Add ReactiveFrames from CompoundFrames
+            reactiveFrames.AddRange(compoundFrames
+                .SelectMany(cf => cf?.Content?.OfType<ReactiveFrame>() ?? Enumerable.Empty<ReactiveFrame>())
+                .Where(rf => !string.IsNullOrEmpty(rf?.Condition))
+                .ToList());
+
+            schemaEntities.AddRange(reactiveFrames.Select(rf => new Entity
+            {
+                Holder = ((rf?.Consequence as PlusProductEvent)?.Plus ??
+                         ((rf?.Consequence as NamingEvent)?.In ?? string.Empty))
+            })
+            .Where(e => !string.IsNullOrEmpty(e.Holder))
+            .Distinct(new EntityEqualityComparer()).ToList());
 
             return schemaEntities.Select(e => e.Holder).Distinct().ToList();
         }
@@ -400,18 +459,18 @@ namespace {projectName}.Web.Controllers
             {
                 return GetValidNaming(actionHolder.Action);
             }
-            
+
             if (!string.IsNullOrWhiteSpace(actionHolder.ViolationEvent))
             {
                 return GetValidNaming($"Violation{actionHolder.ViolationEvent}");
             }
-            
+
             if (!string.IsNullOrWhiteSpace(actionHolder.ViolationExpression))
             {
                 // Generate a simple name for violation expressions
                 return "ViolationExpression";
             }
-            
+
             return null;
         }
 
@@ -649,9 +708,9 @@ namespace {projectName}.Infrastructure
             }
 
             var groupedByHolder = actionHolders
-                .Where(ah => !string.IsNullOrWhiteSpace(ah.Holder) && 
-                           (!string.IsNullOrWhiteSpace(ah.Action) || 
-                            !string.IsNullOrWhiteSpace(ah.ViolationExpression) || 
+                .Where(ah => !string.IsNullOrWhiteSpace(ah.Holder) &&
+                           (!string.IsNullOrWhiteSpace(ah.Action) ||
+                            !string.IsNullOrWhiteSpace(ah.ViolationExpression) ||
                             !string.IsNullOrWhiteSpace(ah.ViolationEvent)))
                 .GroupBy(ah => ah.Holder)
                 .ToList();
@@ -664,8 +723,8 @@ namespace {projectName}.Infrastructure
                 validHolderName = char.ToUpper(validHolderName[0]) + validHolderName.Substring(1);
 
                 var actions = holderGroup
-                    .Where(ah => !string.IsNullOrWhiteSpace(ah.Action) || 
-                               !string.IsNullOrWhiteSpace(ah.ViolationExpression) || 
+                    .Where(ah => !string.IsNullOrWhiteSpace(ah.Action) ||
+                               !string.IsNullOrWhiteSpace(ah.ViolationExpression) ||
                                !string.IsNullOrWhiteSpace(ah.ViolationEvent))
                     .Distinct()
                     .ToList();
@@ -869,7 +928,8 @@ namespace {projectName}.Web.Controllers
         public void CreateViolationEvaluatorService(string projectName)
         {
             var violationExpressions = GetViolationExpressions();
-            if (!violationExpressions.Any())
+            var reactiveFrames = GetReactiveFrames();
+            if (!violationExpressions.Any() && !reactiveFrames.Any())
                 return;
 
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
@@ -877,9 +937,110 @@ namespace {projectName}.Web.Controllers
             CreateViolationEvent(projectName, parentDir);
             CreateViolationEventHandler(projectName, parentDir);
             CreateExpressionEvaluatorInterface(projectName, parentDir);
-            CreateExpressionEvaluatorImplementation(projectName, parentDir, violationExpressions);
+            CreateExpressionEvaluatorImplementation(projectName, parentDir, violationExpressions, reactiveFrames);
             CreateViolationEvaluatorImplementation(projectName, parentDir, violationExpressions);
             RegisterViolationEvaluatorService(projectName, parentDir);
+            
+            // Generate MediatR commands for ReactiveFrame consequences
+            CreateReactiveFrameCommands(reactiveFrames, projectName, parentDir);
+        }
+
+        private void CreateReactiveFrameCommands(List<ReactiveFrame> reactiveFrames, string projectName, string? parentDir)
+        {
+            if (reactiveFrames?.Any() != true)
+                return;
+
+            var diPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure", "DependencyInjection.cs");
+            var diText = File.Exists(diPath) ? File.ReadAllText(diPath) : string.Empty;
+            var diLines = diText.Split('\n').ToList();
+            int addInfraIndex = diLines.FindIndex(l => l.Contains("void AddInfrastructureServices"));
+            if (addInfraIndex != -1)
+            {
+                while (addInfraIndex < diLines.Count && !diLines[addInfraIndex].Contains("{")) addInfraIndex++;
+                addInfraIndex++;
+            }
+
+            foreach (var reactiveFrame in reactiveFrames)
+            {
+                if (reactiveFrame.Consequence == null) continue;
+
+                var actionHolder = ConvertReactiveFrameToActionHolder(reactiveFrame);
+                if (actionHolder == null) continue;
+
+                var validActionName = GetActionNameForEndpoint(actionHolder);
+                if (string.IsNullOrWhiteSpace(validActionName)) continue;
+
+                var validHolderName = GetValidNaming(GetHolderNameFromConsequence(reactiveFrame.Consequence));
+                if (string.IsNullOrWhiteSpace(validHolderName)) continue;
+
+                var commandCode = GetActionCodeBasedOnFrameEventType(actionHolder);
+
+                CreateMediatRCommandAndHandler(validActionName, validHolderName, projectName, commandCode, false, parentDir);
+                CreateApplicationInterface(validActionName, projectName, parentDir);
+                CreateInfrastructureImplementation(validActionName, projectName, parentDir);
+                RegisterServiceInDependencyInjection(validActionName, projectName, diLines, ref addInfraIndex, diPath);
+            }
+        }
+
+        private ActionHolder? ConvertReactiveFrameToActionHolder(ReactiveFrame reactiveFrame)
+        {
+            if (reactiveFrame.Consequence == null) return null;
+
+            var holderName = GetHolderNameFromConsequence(reactiveFrame.Consequence);
+            if (string.IsNullOrWhiteSpace(holderName)) return null;
+
+            var actionName = GetActionNameFromConsequence(reactiveFrame.Consequence);
+            if (string.IsNullOrWhiteSpace(actionName)) return null;
+
+            return new ActionHolder
+            {
+                Holder = holderName,
+                Action = actionName,
+                Consequence = reactiveFrame.Consequence,
+                Condition = reactiveFrame.Condition
+            };
+        }
+
+        private string GetHolderNameFromConsequence(Event consequence)
+        {
+            return consequence switch
+            {
+                PlusProductEvent plusEvent => plusEvent.Plus ?? "Unknown",
+                NamingEvent namingEvent => namingEvent.In ?? "Unknown",
+                _ => "Unknown"
+            };
+        }
+
+        private string? GetActionNameFromConsequence(Event consequence)
+        {
+            return consequence switch
+            {
+                PlusProductEvent plusEvent => $"Create{plusEvent.Plus}",
+                NamingEvent namingEvent => $"Name{namingEvent.Entity}In{namingEvent.In}",
+                _ => null
+            };
+        }
+
+        public List<ReactiveFrame> GetReactiveFrames()
+        {
+            var reactiveFrames = new List<ReactiveFrame>();
+            var directives = _context.Directives.ToList();
+            
+            // Get direct ReactiveFrames
+            reactiveFrames.AddRange(directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<ReactiveFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => d != null).Cast<ReactiveFrame>().ToList());
+
+            // Get ReactiveFrames from CompoundFrames
+            var compoundFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<CompoundFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => !string.IsNullOrEmpty(d?.Compound) && d?.Content?.Any() == true).ToList();
+
+            reactiveFrames.AddRange(compoundFrames
+                .SelectMany(cf => cf?.Content?.OfType<ReactiveFrame>() ?? Enumerable.Empty<ReactiveFrame>())
+                .ToList());
+
+            return reactiveFrames;
         }
 
         private void CreateViolationException(string projectName, string? parentDir)
@@ -1004,23 +1165,38 @@ public class ViolationResult
 
 public interface IExpressionEvaluatorService
 {{
-    Task<List<ViolationResult>> EvaluateViolationExpressionsAsync();
+    List<ViolationResult> EvaluateViolationExpressions();
+    Task EvaluateReactiveConditionsAsync();
 }}";
 
             File.WriteAllText(interfaceFilePath, interfaceCode);
         }
 
-        private void CreateExpressionEvaluatorImplementation(string projectName, string? parentDir, List<string> violationExpressions)
+        private void CreateExpressionEvaluatorImplementation(string projectName, string? parentDir, List<string> violationExpressions, List<ReactiveFrame>? reactiveFrames = null)
         {
             var infraPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Infrastructure");
             Directory.CreateDirectory(infraPath);
-            var serviceFilePath = Path.Combine(infraPath, "ExpressionEvaluatorService.cs");
+            var serviceFilePath = Path.Combine(infraPath, "ReactiveEvaluatorService.cs");
 
-            var evaluationMethods = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
-                $@"    private bool EvaluateExpression{index + 1}()
+            // Extract entity names using the same method used for ApplicationDbContext generation
+            var allEntityNames = ParseAllEntitiesFromSchema()
+                .Where(entityName => !string.IsNullOrWhiteSpace(entityName))
+                .Select(entityName => GetValidNaming(entityName))
+                .Where(validName => !string.IsNullOrWhiteSpace(validName))
+                .Distinct()
+                .ToList();
+
+            // Generate methods for violation expressions (legacy support)
+            var violationMethods = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) =>
+            {
+                var entityVariables = string.Join(Environment.NewLine, allEntityNames.Select(entityName =>
+                    $"            var {entityName ?? "entity"} = _applicationDbContext.{entityName}s.First();"));
+
+                return $@"    private bool EvaluateViolationExpression{index + 1}()
     {{
         try
         {{
+{entityVariables}
             return {expr};
         }}
         catch (Exception ex)
@@ -1028,42 +1204,137 @@ public interface IExpressionEvaluatorService
             _logger.LogError(ex, ""Error evaluating violation expression: {expr.Replace("\"", "\\\"")}"");
             return false;
         }}
-    }}"));
+    }}";
+            }));
 
-            var evaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) => 
-                $@"        if (EvaluateExpression{index + 1}())
+            // Generate methods for reactive frames
+            var reactiveMethods = string.Empty;
+            var reactiveEvaluationCalls = string.Empty;
+            
+            if (reactiveFrames?.Any() == true)
+            {
+                var expressionReactiveFrames = reactiveFrames
+                    .Where(rf => IsExpressionCondition(rf.Condition))
+                    .ToList();
+
+                reactiveMethods = string.Join(Environment.NewLine, expressionReactiveFrames.Select((rf, index) =>
+                {
+                    var entityVariables = string.Join(Environment.NewLine, allEntityNames.Select(entityName =>
+                        $"            var {entityName ?? "entity"} = _applicationDbContext.{entityName}s.First();"));
+
+                    var consequenceEvent = GenerateConsequenceEvent(rf.Consequence, projectName);
+
+                    return $@"    private bool EvaluateReactiveCondition{index + 1}()
+    {{
+        try
+        {{
+{entityVariables}
+            return {rf.Condition};
+        }}
+        catch (Exception ex)
+        {{
+            _logger.LogError(ex, ""Error evaluating reactive condition: {rf.Condition.Replace("\"", "\\\"")}"");
+            return false;
+        }}
+    }}
+
+    private async Task ExecuteReactiveConsequence{index + 1}()
+    {{
+        try
+        {{
+{consequenceEvent}
+        }}
+        catch (Exception ex)
+        {{
+            _logger.LogError(ex, ""Error executing reactive consequence"");
+        }}
+    }}";
+                }));
+
+                reactiveEvaluationCalls = string.Join(Environment.NewLine, expressionReactiveFrames.Select((rf, index) =>
+                    $@"        if (EvaluateReactiveCondition{index + 1}())
+        {{
+            await ExecuteReactiveConsequence{index + 1}();
+        }}"));
+            }
+
+            var violationEvaluationCalls = string.Join(Environment.NewLine, violationExpressions.Select((expr, index) =>
+                $@"        if (EvaluateViolationExpression{index + 1}())
         {{
             violations.Add(new ViolationResult(""Violation detected: {expr.Replace("\"", "\\\"")}"", ""{expr.Replace("\"", "\\\"")}""));
         }}"));
 
             var serviceCode = $@"using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using MediatR;
 using {projectName}.Application.Common.Interfaces;
+using {projectName}.Application.Common.Events;
 
 namespace {projectName}.Infrastructure;
 
-public class ExpressionEvaluatorService : IExpressionEvaluatorService
+public class ReactiveEvaluatorService : IExpressionEvaluatorService
 {{
-    private readonly ILogger<ExpressionEvaluatorService> _logger;
+    private readonly ILogger<ReactiveEvaluatorService> _logger;
+    private readonly IApplicationDbContext _applicationDbContext;
+    private readonly IMediator _mediator;
 
-    public ExpressionEvaluatorService(ILogger<ExpressionEvaluatorService> logger)
+    public ReactiveEvaluatorService(
+        ILogger<ReactiveEvaluatorService> logger,
+        IApplicationDbContext applicationDbContext,
+        IMediator mediator)
     {{
         _logger = logger;
+        _applicationDbContext = applicationDbContext;
+        _mediator = mediator;
     }}
 
-    public async Task<List<ViolationResult>> EvaluateViolationExpressionsAsync()
+    public List<ViolationResult> EvaluateViolationExpressions()
     {{
         var violations = new List<ViolationResult>();
         
-{evaluationCalls}
+{violationEvaluationCalls}
         
-        await Task.CompletedTask;
         return violations;
     }}
 
-{evaluationMethods}
+    public async Task EvaluateReactiveConditionsAsync()
+    {{
+{reactiveEvaluationCalls}
+    }}
+
+{violationMethods}
+
+{reactiveMethods}
 }}";
 
             File.WriteAllText(serviceFilePath, serviceCode);
+        }
+
+        private string GenerateConsequenceEvent(Event consequence, string projectName)
+        {
+            var holderName = GetHolderNameFromConsequence(consequence);
+            var actionName = GetActionNameFromConsequence(consequence);
+            
+            // Only proceed if we have valid holder and action names
+            if (!string.IsNullOrWhiteSpace(holderName) && !string.IsNullOrWhiteSpace(actionName))
+            {
+                var validHolderName = GetValidNaming(holderName);
+                var validActionName = GetValidNaming(actionName);
+
+                if (!string.IsNullOrWhiteSpace(validHolderName) && !string.IsNullOrWhiteSpace(validActionName))
+                {
+                    return $@"            var command = new Application.{validHolderName}.Commands.Create{validActionName}Command(""ReactiveGenerated"");
+            await _mediator.Send(command);";
+                }
+            }
+            
+            // Fallback for unsupported consequence types
+            return $@"            // No specific command for this consequence type
+            var eventToPublish = new ViolationDetectedEvent(
+                ""Reactive condition triggered"", 
+                null, 
+                ""ReactiveFrameTriggered"");
+            await _mediator.Publish(eventToPublish);";
         }
 
         private void CreateViolationEvaluatorInterface(string projectName, string? parentDir)
@@ -1090,6 +1361,7 @@ public interface IViolationEvaluatorService
 
             var serviceCode = $@"using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using MediatR;
 using {projectName}.Application.Common.Interfaces;
 using {projectName}.Application.Common.Events;
@@ -1100,18 +1372,15 @@ namespace {projectName}.Application.Common.Services;
 public class ViolationEvaluatorService : BackgroundService
 {{
     private readonly ILogger<ViolationEvaluatorService> _logger;
-    private readonly IExpressionEvaluatorService _expressionEvaluator;
-    private readonly IMediator _mediator;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(1);
 
     public ViolationEvaluatorService(
         ILogger<ViolationEvaluatorService> logger,
-        IExpressionEvaluatorService expressionEvaluator,
-        IMediator mediator)
+        IServiceScopeFactory serviceScopeFactory)
     {{
         _logger = logger;
-        _expressionEvaluator = expressionEvaluator;
-        _mediator = mediator;
+        _serviceScopeFactory = serviceScopeFactory;
     }}
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -1145,7 +1414,12 @@ public class ViolationEvaluatorService : BackgroundService
 
     public async Task CheckViolationsAsync()
     {{
-        var violations = await _expressionEvaluator.EvaluateViolationExpressionsAsync();
+        using var scope = _serviceScopeFactory.CreateScope();
+        var expressionEvaluator = scope.ServiceProvider.GetRequiredService<IExpressionEvaluatorService>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        
+        // Evaluate traditional violation expressions
+        var violations = expressionEvaluator.EvaluateViolationExpressions();
         
         foreach (var violation in violations)
         {{
@@ -1154,8 +1428,11 @@ public class ViolationEvaluatorService : BackgroundService
                 violation.Expression, 
                 null);
             
-            await _mediator.Publish(violationEvent);
+            await mediator.Publish(violationEvent);
         }}
+
+        // Evaluate reactive conditions
+        await expressionEvaluator.EvaluateReactiveConditionsAsync();
         
         await Task.CompletedTask;
     }}
@@ -1213,8 +1490,8 @@ public class ViolationEvaluatorService : BackgroundService
             if (File.Exists(infraDiPath))
             {
                 var infraDiText = File.ReadAllText(infraDiPath);
-                var infraRegistration = $"builder.Services.AddSingleton<IExpressionEvaluatorService, ExpressionEvaluatorService>();";
-                
+                var infraRegistration = $"builder.Services.AddScoped<IExpressionEvaluatorService, ReactiveEvaluatorService>();";
+
                 if (!infraDiText.Contains(infraRegistration))
                 {
                     var lines = infraDiText.Split('\n').ToList();

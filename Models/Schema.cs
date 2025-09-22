@@ -31,6 +31,12 @@ public class CompoundFrame : Frame
     public List<Frame> Content { get; set; } = new();
 }
 
+public class ReactiveFrame : Frame
+{
+    public string Condition { get; set; }
+    public Event Consequence { get; set; }
+}
+
 public class EventExpression
 {
     public string? Expression { get; set; }

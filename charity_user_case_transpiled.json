@@ -25,7 +25,7 @@
         "holder": "medCare",
         "action": "#providePrivacyNotice",
         "consequence": {
-          "plus": "d1.fulfilled"
+          "plus": "d1fulfilled"
         }
       },
       {
@@ -33,7 +33,7 @@
         "holder": "enrolledPatient",
         "action": "#reportFailureToProvideNotice",
         "consequence": {
-          "plus": "d1.violated"
+          "plus": "d1violated"
         }
       },
       {
@@ -41,7 +41,7 @@
         "holder": "medCare",
         "action": "#implementDataMinimization",
         "consequence": {
-          "plus": "d2.fulfilled"
+          "plus": "d2fulfilled"
         }
       },
       {
@@ -49,7 +49,7 @@
         "holder": "enrolledPatient",
         "action": "#reportExcessiveDataCollection",
         "consequence": {
-          "plus": "d2.violated"
+          "plus": "d2violated"
         }
       },
       {
@@ -79,14 +79,13 @@
         "holder": "medCare",
         "action": "#respondToAccessRequest",
         "consequence": {
-          "plus": "d3.fulfilled"
+          "plus": "d3fulfilled"
         }
       },
       {
-        "position": "expression",
-        "expression": "DateTime.Now > requestDate.AddMonths(1)",
+        "condition": "DateTime.Now > RespondAccessRequest.Created.AddMonths(1)",
         "consequence": {
-          "plus": "d3.violated"
+          "plus": "d3violated"
         }
       }
     ]
@@ -104,7 +103,7 @@
         "holder": "thirdParties",
         "action": "#complyWithDPA",
         "consequence": {
-          "plus": "d4.fulfilled"
+          "plus": "d4fulfilled"
         }
       },
       {
@@ -112,7 +111,7 @@
         "holder": "medCare",
         "action": "#reportDpaNoncompliance",
         "consequence": {
-          "plus": "d4.violated"
+          "plus": "d4violated"
         }
       }
     ]
@@ -138,7 +137,7 @@
         "holder": "medCare",
         "action": "#sendRemindersCompliantly",
         "consequence": {
-          "plus": "d5.fulfilled"
+          "plus": "d5fulfilled"
         }
       },
       {
@@ -146,7 +145,7 @@
         "holder": "enrolledPatient",
         "action": "#reportUnauthorizedMarketing",
         "consequence": {
-          "plus": "d5.violated"
+          "plus": "d5violated"
         }
       }
     ]
