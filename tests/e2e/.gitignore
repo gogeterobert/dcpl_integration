@@ -1,0 +1,33 @@
+# E2E Test Reports
+reports/
+
+# Application process files
+*.pid
+
+# Node modules
+node_modules/
+
+# TypeScript build output
+dist/
+
+# Test artifacts
+cucumber-report.json
+test-results.xml
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.test

@@ -1,0 +1,35 @@
+{
+  "name": "doi-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for DOI application using Gherkin scenarios",
+  "main": "index.js",
+  "scripts": {
+    "test": "cucumber-js",
+    "test:cucumber": "cucumber-js features/**/*.feature --require-module ts-node/register --require step-definitions/**/*.ts --format progress --format json:reports/cucumber-report.json",
+    "test:debug": "cucumber-js --debug",
+    "start-app": "node scripts/start-app.js",
+    "stop-app": "node scripts/stop-app.js",
+    "e2e": "node scripts/run-e2e.js",
+    "build": "tsc",
+    "clean": "rimraf dist coverage"
+  },
+  "keywords": ["e2e", "testing", "gherkin", "cucumber", "api"],
+  "author": "DOI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/axios": "^0.14.0",
+    "@cucumber/cucumber": "^10.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.0.0",
+    "axios": "^1.6.0",
+    "rimraf": "^5.0.0",
+    "wait-on": "^7.2.0",
+    "tree-kill": "^1.2.2"
+  },
+  "cucumber": {
+    "require": ["ts-node/register", "dist/step-definitions/**/*.js"],
+    "format": ["progress", "json:reports/cucumber-report.json"],
+    "paths": ["features/**/*.feature"]
+  }
+}
