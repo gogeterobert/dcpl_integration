@@ -1,0 +1,25 @@
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph Web["Web Layer"]
+        UI["UI / Controllers"]
+  end
+ subgraph Application["Application Layer"]
+        Services["Application Services"]
+  end
+ subgraph Domain["Domain Layer"]
+        Entities["Entities / Aggregates"]
+  end
+ subgraph Core["Core System"]
+        Web
+        Application
+        Domain
+  end
+ subgraph Infrastructure["Infrastructure Layer (External expressions)"]
+        Evaluator["Expression Evaluator (Loop evaluation)"]
+  end
+    UI --> Services
+    Services --> Entities
+    Evaluator --> Services

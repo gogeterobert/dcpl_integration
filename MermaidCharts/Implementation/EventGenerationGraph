@@ -1,0 +1,18 @@
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph Application["Application Layer (Event handling)"]
+        Services["Application Services"]
+  end
+ subgraph Domain["Domain Layer"]
+        Entities["Entities / Aggregates"]
+  end
+ subgraph ReactiveFrame["Reactive Frame"]
+        Condition["Condition (event)"]
+        Consequence["Consequence"]
+  end
+    Services --> Entities
+    Condition --> Services
+    Consequence --> Services
