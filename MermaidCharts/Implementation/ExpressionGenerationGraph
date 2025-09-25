@@ -12,7 +12,7 @@ flowchart TB
  subgraph Infrastructure["Infrastructure Layer"]
         Evaluator["Expression evaluator"]
   end
- subgraph ReactiveFrame["Reactive Frame"]
+ subgraph ReactiveFrame["Reactive Frame - From Duty"]
         Condition["Condition (expression)"]
         Consequence["Consequence"]
   end

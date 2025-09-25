@@ -9,8 +9,8 @@ flowchart TB
  subgraph Domain["Domain Layer"]
         Entities["Entities / Aggregates"]
   end
- subgraph ReactiveFrame["Reactive Frame"]
-        Condition["Condition (event)"]
+ subgraph ReactiveFrame["Holder power - From Duty"]
+        Condition["Event"]
         Consequence["Consequence"]
   end
     Services --> Entities
