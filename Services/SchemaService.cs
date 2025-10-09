@@ -509,6 +509,11 @@ namespace {projectName}.Web.Controllers
                 var entity = new Domain.Entities.{validIn} {{ Name = request.Name }};
                 _applicationDbContext.{validIn}s.Add(entity);
                 await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                
+                // Publish entity created event for transformational frame processing
+                var entityCreatedEvent = new Application.Common.Events.EntityCreatedEvent(""{validIn}"", request.Name);
+                await _mediator.Publish(entityCreatedEvent, cancellationToken);
+                
                 return entity.Name;
                 ";
             }
@@ -520,6 +525,11 @@ namespace {projectName}.Web.Controllers
                 var entity = new Domain.Entities.{validHolderName} {{ Name = request.Name }};
                 _applicationDbContext.{validHolderName}s.Add(entity);
                 await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                
+                // Publish entity created event for transformational frame processing
+                var entityCreatedEvent = new Application.Common.Events.EntityCreatedEvent(""{validHolderName}"", request.Name);
+                await _mediator.Publish(entityCreatedEvent, cancellationToken);
+                
                 return entity.Name;
                 ";
             }
@@ -543,7 +553,7 @@ namespace {projectName}.Web.Controllers
 
             var validObjectName = GetValidNaming(actionHolder.Condition);
 
-            return $@" && !await _applicationDbContext.{validObjectName}s.AnyAsync()";
+            return $@" || !await _applicationDbContext.{validObjectName}s.AnyAsync()";
         }
 
         private void AddEntityToApplicationDbContextInterface(string validHolderName, string projectName, string? parentDir)
@@ -770,6 +780,11 @@ namespace {projectName}.Web.Controllers
                 var entity = new Domain.Entities.{validHolderName} {{ Name = request.Name }};
                 _applicationDbContext.{validHolderName}s.Add(entity);
                 await _applicationDbContext.SaveChangesAsync(cancellationToken);
+                
+                // Publish entity created event for transformational frame processing
+                var entityCreatedEvent = new Application.Common.Events.EntityCreatedEvent(""{validHolderName}"", request.Name);
+                await _mediator.Publish(entityCreatedEvent, cancellationToken);
+                
                 return entity.Name;
             ";
             CreateMediatRCommandAndHandler("Entity" + validHolderName, validHolderName, projectName, commandCode, true, parentDir);
@@ -943,6 +958,212 @@ namespace {projectName}.Web.Controllers
             
             // Generate MediatR commands for ReactiveFrame consequences
             CreateReactiveFrameCommands(reactiveFrames, projectName, parentDir);
+        }
+
+        public void CreateTransformationalFrameDomainLogic(string projectName)
+        {
+            var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
+            var transformationalFrames = GetTransformationalFrames();
+            
+            if (!transformationalFrames.Any())
+                return;
+
+            // Create domain events for entity lifecycle
+            CreateEntityCreatedEvent(projectName, parentDir);
+            CreateEntityDeletedEvent(projectName, parentDir);
+            
+            // Create event handlers for each transformational frame
+            foreach (var tf in transformationalFrames)
+            {
+                CreateTransformationalFrameEventHandlers(tf, projectName, parentDir);
+            }
+        }
+
+        public List<TransformationalFrame> GetTransformationalFrames()
+        {
+            var directives = _context.Directives.ToList();
+            var transformationalFrames = directives.Select(directiveEntity =>
+                JsonSerializer.Deserialize<TransformationalFrame>(directiveEntity.JsonData, _jsonOptions)
+            ).Where(d => d?.Conclusion != null && !string.IsNullOrEmpty(d.Condition)).ToList();
+
+            return transformationalFrames.Where(tf => tf != null).Cast<TransformationalFrame>().ToList();
+        }
+
+        private void CreateEntityCreatedEvent(string projectName, string? parentDir)
+        {
+            var eventsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Events");
+            Directory.CreateDirectory(eventsPath);
+            var eventFilePath = Path.Combine(eventsPath, "EntityCreatedEvent.cs");
+
+            var eventCode = $@"using MediatR;
+
+namespace {projectName}.Application.Common.Events;
+
+public class EntityCreatedEvent : INotification
+{{
+    public string EntityType {{ get; set; }}
+    public string EntityName {{ get; set; }}
+
+    public EntityCreatedEvent(string entityType, string entityName)
+    {{
+        EntityType = entityType;
+        EntityName = entityName;
+    }}
+}}";
+
+            File.WriteAllText(eventFilePath, eventCode);
+        }
+
+        private void CreateEntityDeletedEvent(string projectName, string? parentDir)
+        {
+            var eventsPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "Events");
+            Directory.CreateDirectory(eventsPath);
+            var eventFilePath = Path.Combine(eventsPath, "EntityDeletedEvent.cs");
+
+            var eventCode = $@"using MediatR;
+
+namespace {projectName}.Application.Common.Events;
+
+public class EntityDeletedEvent : INotification
+{{
+    public string EntityType {{ get; set; }}
+    public string EntityName {{ get; set; }}
+
+    public EntityDeletedEvent(string entityType, string entityName)
+    {{
+        EntityType = entityType;
+        EntityName = entityName;
+    }}
+}}";
+
+            File.WriteAllText(eventFilePath, eventCode);
+        }
+
+        private void CreateTransformationalFrameEventHandlers(TransformationalFrame tf, string projectName, string? parentDir)
+        {
+            // Extract condition and conclusion entity names
+            var conditionEntity = GetValidNaming(tf.Condition);
+            var conclusionEntity = GetConclusionEntityName(tf.Conclusion);
+
+            if (string.IsNullOrWhiteSpace(conditionEntity) || string.IsNullOrWhiteSpace(conclusionEntity))
+                return;
+
+            // Create handler for entity created (condition -> conclusion)
+            CreateEntityCreatedHandler(conditionEntity, conclusionEntity, projectName, parentDir);
+            
+            // Create handler for entity deleted (condition -> conclusion)
+            CreateEntityDeletedHandler(conditionEntity, conclusionEntity, projectName, parentDir);
+        }
+
+        private string? GetConclusionEntityName(Frame conclusion)
+        {
+            if (conclusion is PowerFrame powerFrame)
+            {
+                var consequence = powerFrame.Consequence;
+                if (consequence is PlusProductEvent plusEvent)
+                    return GetValidNaming(plusEvent.Plus);
+                if (consequence is NamingEvent namingEvent)
+                    return GetValidNaming(namingEvent.In);
+            }
+            else if (conclusion is CompoundFrame compoundFrame)
+            {
+                return GetValidNaming(compoundFrame.Compound);
+            }
+
+            return null;
+        }
+
+        private void CreateEntityCreatedHandler(string conditionEntity, string conclusionEntity, string projectName, string? parentDir)
+        {
+            var handlersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "EventHandlers");
+            Directory.CreateDirectory(handlersPath);
+            var handlerFilePath = Path.Combine(handlersPath, $"{conditionEntity}Created_Creates{conclusionEntity}Handler.cs");
+
+            var handlerCode = $@"using MediatR;
+using Microsoft.Extensions.Logging;
+using {projectName}.Application.Common.Events;
+using {projectName}.Application.Common.Interfaces;
+using {projectName}.Domain.Entities;
+
+namespace {projectName}.Application.Common.EventHandlers;
+
+public class {conditionEntity}Created_Creates{conclusionEntity}Handler : INotificationHandler<EntityCreatedEvent>
+{{
+    private readonly ILogger<{conditionEntity}Created_Creates{conclusionEntity}Handler> _logger;
+    private readonly IApplicationDbContext _applicationDbContext;
+
+    public {conditionEntity}Created_Creates{conclusionEntity}Handler(
+        ILogger<{conditionEntity}Created_Creates{conclusionEntity}Handler> logger,
+        IApplicationDbContext applicationDbContext)
+    {{
+        _logger = logger;
+        _applicationDbContext = applicationDbContext;
+    }}
+
+    public async Task Handle(EntityCreatedEvent notification, CancellationToken cancellationToken)
+    {{
+        if (notification.EntityType != ""{conditionEntity}"")
+            return;
+
+        _logger.LogInformation(""Transformational frame triggered: Creating {{ConclusionEntity}} for {{ConditionEntity}}"", 
+            ""{conclusionEntity}"", notification.EntityName);
+
+        var conclusionEntity = new {conclusionEntity} {{ Name = notification.EntityName }};
+        _applicationDbContext.{conclusionEntity}s.Add(conclusionEntity);
+        await _applicationDbContext.SaveChangesAsync(cancellationToken);
+    }}
+}}";
+
+            File.WriteAllText(handlerFilePath, handlerCode);
+        }
+
+        private void CreateEntityDeletedHandler(string conditionEntity, string conclusionEntity, string projectName, string? parentDir)
+        {
+            var handlersPath = Path.Combine(parentDir ?? "", "compiled_solution", projectName, "src", "Application", "Common", "EventHandlers");
+            Directory.CreateDirectory(handlersPath);
+            var handlerFilePath = Path.Combine(handlersPath, $"{conditionEntity}Deleted_Deletes{conclusionEntity}Handler.cs");
+
+            var handlerCode = $@"using MediatR;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using {projectName}.Application.Common.Events;
+using {projectName}.Application.Common.Interfaces;
+
+namespace {projectName}.Application.Common.EventHandlers;
+
+public class {conditionEntity}Deleted_Deletes{conclusionEntity}Handler : INotificationHandler<EntityDeletedEvent>
+{{
+    private readonly ILogger<{conditionEntity}Deleted_Deletes{conclusionEntity}Handler> _logger;
+    private readonly IApplicationDbContext _applicationDbContext;
+
+    public {conditionEntity}Deleted_Deletes{conclusionEntity}Handler(
+        ILogger<{conditionEntity}Deleted_Deletes{conclusionEntity}Handler> logger,
+        IApplicationDbContext applicationDbContext)
+    {{
+        _logger = logger;
+        _applicationDbContext = applicationDbContext;
+    }}
+
+    public async Task Handle(EntityDeletedEvent notification, CancellationToken cancellationToken)
+    {{
+        if (notification.EntityType != ""{conditionEntity}"")
+            return;
+
+        _logger.LogInformation(""Transformational frame triggered: Deleting {{ConclusionEntity}} for {{ConditionEntity}}"", 
+            ""{conclusionEntity}"", notification.EntityName);
+
+        var conclusionEntity = await _applicationDbContext.{conclusionEntity}s
+            .FirstOrDefaultAsync(x => x.Name == notification.EntityName, cancellationToken);
+
+        if (conclusionEntity != null)
+        {{
+            _applicationDbContext.{conclusionEntity}s.Remove(conclusionEntity);
+            await _applicationDbContext.SaveChangesAsync(cancellationToken);
+        }}
+    }}
+}}";
+
+            File.WriteAllText(handlerFilePath, handlerCode);
         }
 
         private void CreateReactiveFrameCommands(List<ReactiveFrame> reactiveFrames, string projectName, string? parentDir)

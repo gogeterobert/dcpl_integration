@@ -79,6 +79,9 @@ namespace DCPLInterpreterV2.Controllers
             // Create violation evaluator service
             _schemaService.CreateViolationEvaluatorService(newProject.Name);
             
+            // Create transformational frame domain logic (condition -> conclusion)
+            _schemaService.CreateTransformationalFrameDomainLogic(newProject.Name);
+            
             // Add migration and apply it
             _schemaService.RemoveDevelopmentIfElse(newProject.Name);
             _schemaService.AddEfMigration(newProject.Name, "InitialAutoMigration");

@@ -15,6 +15,7 @@ public interface ISchemaService
     void CreateNewEntityInGeneratedSolution(string entityName, string projectName);
     void CreateGenericControllersAndCommands(List<ActionHolder> entities, string projectName);
     void CreateViolationEvaluatorService(string projectName);
+    void CreateTransformationalFrameDomainLogic(string projectName);
     void AddEfMigration(string projectName, string migrationName);
     void ApplyEfMigrations(string projectName);
     void RemoveDevelopmentIfElse(string projectName);
