@@ -22,11 +22,9 @@
     code .
     ```
 
-3. **Restore dependencies:**
+3. **Delete the tests folder**
 
-    ```sh
-    dotnet restore
-    ```
+    Delete everything from the tests folder except for e2e. These files are used to test the compiled solution, not the generator solution.
 
 4. **Build the solution:**
 
