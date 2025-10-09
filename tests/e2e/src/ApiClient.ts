@@ -15,46 +15,46 @@ export class ApiClient {
     }
 
     async get(endpoint: string): Promise<AxiosResponse> {
-        console.log(`🌐 GET ${this.baseUrl}${endpoint}`);
+        console.log(`GET ${this.baseUrl}${endpoint}`);
         this.lastResponse = await axios.get(`${this.baseUrl}${endpoint}`);
         if (this.lastResponse) {
-            console.log(`📊 Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
+            console.log(`Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
         }
         return this.lastResponse!;
     }
 
     async post(endpoint: string, data: any): Promise<AxiosResponse> {
-        console.log(`🌐 POST ${this.baseUrl}${endpoint}`);
-        console.log(`📤 Data:`, JSON.stringify(data, null, 2));
+        console.log(`POST ${this.baseUrl}${endpoint}`);
+        console.log(`Data:`, JSON.stringify(data, null, 2));
         this.lastResponse = await axios.post(`${this.baseUrl}${endpoint}`, data, {
             headers: {
                 'Content-Type': 'application/json'
             }
         });
         if (this.lastResponse) {
-            console.log(`📊 Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
+            console.log(`Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
         }
         return this.lastResponse!;
     }
 
     async put(endpoint: string, data: any): Promise<AxiosResponse> {
-        console.log(`🌐 PUT ${this.baseUrl}${endpoint}`);
+        console.log(`PUT ${this.baseUrl}${endpoint}`);
         this.lastResponse = await axios.put(`${this.baseUrl}${endpoint}`, data, {
             headers: {
                 'Content-Type': 'application/json'
             }
         });
         if (this.lastResponse) {
-            console.log(`📊 Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
+            console.log(`Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
         }
         return this.lastResponse!;
     }
 
     async delete(endpoint: string): Promise<AxiosResponse> {
-        console.log(`🌐 DELETE ${this.baseUrl}${endpoint}`);
+        console.log(`DELETE ${this.baseUrl}${endpoint}`);
         this.lastResponse = await axios.delete(`${this.baseUrl}${endpoint}`);
         if (this.lastResponse) {
-            console.log(`📊 Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
+            console.log(`Response: ${this.lastResponse.status} ${this.lastResponse.statusText}`);
         }
         return this.lastResponse!;
     }
@@ -77,7 +77,7 @@ export class ApiClient {
         
         while (Date.now() - startTime < timeoutMs) {
             if (await this.checkHealth()) {
-                console.log('✅ Application is healthy');
+                console.log('Application is healthy');
                 return;
             }
             await new Promise(resolve => setTimeout(resolve, 1000));
