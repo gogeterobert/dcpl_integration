@@ -24,7 +24,7 @@
 
 3. **Delete the tests folder**
 
-    Delete everything from the tests folder except for e2e. These files are used to test the compiled solution, not the generator solution.
+    Delete everything from the tests folder. These files are used to test the compiled solution, not the generator solution.
 
 4. **Build the solution:**
 
