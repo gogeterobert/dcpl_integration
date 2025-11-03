@@ -1,0 +1,39 @@
+[
+  {
+    "position": "power",
+    "holder": "user",
+    "action": "#seeSchedules"
+  },
+  {
+    "position": "power",
+    "holder": "user",
+    "action": "#allowCollectionForTicketManagement",
+    "consequence": {
+      "plus": "ticketManagementDataCollection"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "user",
+    "action": "#allowCollectionForMarketing",
+    "consequence": {
+      "plus": "marketingDataCollection"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "user",
+    "action": "#reportViolationTicketManagement",
+    "consequence": {
+      "plus": "ticketManagementViolationReported"
+    }
+  },
+  {
+    "position": "power",
+    "holder": "user",
+    "action": "#reportViolationMarketing",
+    "consequence": {
+      "plus": "marketingViolationReported"
+    }
+  }
+]

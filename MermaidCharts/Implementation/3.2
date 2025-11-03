@@ -1,0 +1,21 @@
+---
+config:
+  layout: dagre
+---
+flowchart LR
+ subgraph Policy["Transpiled DCPL Policies"]
+    direction TB
+        A["Declarative Components"]
+        C["Reactive Rules"]
+  end
+ subgraph Execution["Execution Layer"]
+    direction TB
+        B["Agent Actions"]
+        E["Domain Actions"]
+        D["Reactive System"]
+  end
+    A -- Define --> B
+    C -- Define events for --> D
+    B -- Perform --> E
+    D -- Trigger --> E
+    Policy -- Operationalized through --> Execution
