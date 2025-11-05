@@ -1,39 +1,22 @@
 [
   {
     "position": "power",
-    "holder": "user",
+    "holder": "webusUser",
     "action": "#seeSchedules"
   },
   {
     "position": "power",
-    "holder": "user",
-    "action": "#allowCollectionForTicketManagement",
-    "consequence": {
-      "plus": "ticketManagementDataCollection"
-    }
+    "holder": "webusUser",
+    "action": "#buy_ticket"
   },
   {
     "position": "power",
-    "holder": "user",
-    "action": "#allowCollectionForMarketing",
-    "consequence": {
-      "plus": "marketingDataCollection"
-    }
+    "holder": "webusUser",
+    "action": "#subscribe"
   },
   {
     "position": "power",
-    "holder": "user",
-    "action": "#reportViolationTicketManagement",
-    "consequence": {
-      "plus": "ticketManagementViolationReported"
-    }
-  },
-  {
-    "position": "power",
-    "holder": "user",
-    "action": "#reportViolationMarketing",
-    "consequence": {
-      "plus": "marketingViolationReported"
-    }
+    "holder": "webusUser",
+    "action": "#seePurchaseHistory"
   }
 ]

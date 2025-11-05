@@ -965,13 +965,14 @@ namespace {projectName}.Web.Controllers
             var parentDir = Directory.GetParent(Directory.GetCurrentDirectory())?.FullName;
             var transformationalFrames = GetTransformationalFrames();
             
-            if (!transformationalFrames.Any())
-                return;
 
             // Create domain events for entity lifecycle
             CreateEntityCreatedEvent(projectName, parentDir);
             CreateEntityDeletedEvent(projectName, parentDir);
-            
+
+            if (!transformationalFrames.Any())
+                return;
+                
             // Create event handlers for each transformational frame
             foreach (var tf in transformationalFrames)
             {
@@ -1520,6 +1521,7 @@ public class ReactiveEvaluatorService : IExpressionEvaluatorService
 
     public async Task EvaluateReactiveConditionsAsync()
     {{
+    await Task.Delay(1);
 {reactiveEvaluationCalls}
     }}
 
