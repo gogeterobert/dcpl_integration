@@ -1,0 +1,82 @@
+
+%%%% OLD SECTION %%%%
+
+
+This chapter details the methodology employed to address the research question (RQ1) on how the policies can be operationalized by generating executable software components. First, in section \ref{sec:framework}, we outline the development of a software library designed for compiling DCPL models that specify policies and then generates an executable architecture. This section specifically addresses the sub-research questions concerning how DCPL policies can be transpiled into declarative components orthogonal to the reactive triggers (RQ1.1) and how the generated software can separate reactive triggers from the execution of declarative logic (RQ1.2). Second, section \ref{sec:evaluating} presents the strategy for evaluating the effectiveness and performance of the developed framework using a relevant use case.
+
+
+\section{Framework for operationalizing policies} \label{sec:framework}
+
+The proposed framework operationalizes policies defined using the DCPL language through a two-stage process, visualized in Figure \ref{fig:framework_process}. Initially, the input DCPL model, which may contain deontic specifications (like duties), undergoes a transpilation phase. This phase rewrites the original model into a new, functionally equivalent DCPL model where deontic constructs are expressed primarily in terms of potestative positions (powers) and reactive rules. Subsequently, this transpiled DCPL model serves as input for the software library we are building. This library compiles the transpiled model into executable software components (source code in another language that can be ran).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/framework_process.png}
+    \caption{Framework process}
+    \label{fig:framework_process}
+\end{figure}
+ 
+
+\subsection{Transpiling DCPL}\label{sec:transpilation}
+
+A key step in operationalizing DCPL policies within the reactive system is the transpilation of normative specifications, particularly deontic positions like duties, into constructs that the reactive system can directly execute. This involves rewriting deontic specifications in terms of potestative positions (powers) and reactive rules \cite{DCPLDocs}. This transformation makes the events of fulfillment and violation agnostic of the mechanism from which they are triggered. Transpilation also has the advantage of bringing power constructs to the foreground \cite{SilenoGiovanni2022DaLT}.
+
+\subsection{Integrating generated code from declarative components with the reactive system} \label{subsec:integration}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{images/reactive_generation.png}
+\caption{Reactivity operationalization}
+    \label{fig:reactive_generation}
+\end{figure}
+
+Policy operationalization is achieved through code generation that is briefly described by figure \ref{fig:reactive_generation}. The executable software components generated from the transpiled DCPL model represent the declarative aspect of the policies, defining *what* actions are permitted or obligated under certain conditions. These components, primarily derived from power frames, empower agents (users or system actors) within the application to perform specific actions if the policy conditions are met.
+
+At the same time, the reactive system operates based on expressions which are the reactive rules defined in the transpiled DCPL model. When the reactive system detects an event (e.g. a timer expiring) that matches a reactive rule's condition, it emits corresponding action events. These system-emitted events can trigger further state changes or invoke the same declarative logic components that agents might trigger directly.
+
+This architectural approach ensures a separation of concerns, addressing RQ1.2. The reactive system is responsible for detecting *when* something should happen (based on reactive rules), while the compiled declarative components define *what* logic should be executed (based on powers, permissions, obligations). The integration happens through shared action events: agents perform actions defined by declarative components, and the reactive system emits actions defined by reactive rules, both interacting with the same underlying state and logic defined by the operationalized policies.
+
+
+\begin{itemize}
+    \item \textbf{Declarative Components (Generated from Power Frames):} These represent the compiled logic defining *what* actions are permitted or obligated based on the system's state. Derived from power frames in the transpiled DCPL, they provide the executable functions or checks that empower agents to perform actions when conditions are met. For example, a component might check if a user belongs to "Group A" before allowing access to "Resource X". These components form the core executable policy logic.
+
+    \item \textbf{Reactive System Triggers (Generated from Reactive Rules):} This part of the system is responsible for detecting *when* certain conditions arise based on events, as defined by the reactive rules in the transpiled DCPL model. It monitors runtime events (state changes, time passing, external signals) and, upon detecting a match with a rule's trigger condition, it emits the corresponding action event specified by that rule. For instance, upon detecting a "location change" event, it might emit an action event like "\#reEvaluateAccess". This addresses RQ1.2 by separating the event detection and triggering mechanism from the core policy execution logic defined in the declarative components.
+\end{itemize}
+
+
+\section{Evaluating operationalization of policies} \label{sec:evaluating}
+
+In this section we outline a strategy for evaluating this framework's performance against a set of use cases and metrics. The evaluation will be conducted through use cases to assess its expressive power and practicality, complemented by a performance analysis.
+
+\subsection{Use case based evaluation}
+
+A use case for the empirical investigation of the research question will be selected based on a multi-criteria methodology to ensure validity and relevance. The criteria for selection are:
+
+\begin{itemize}
+\item \textbf{Authority}: The policy must be sourced from an authoritative body, such as the EU Commission, or from a reputable academic publication, to provide a well-defined and recognized basis for the case study.
+\item \textbf{Relevance}: The use case must contain both static and reactive policy elements to fully test the DCPL framework's capabilities in operationalizing both types of directives.
+\item \textbf{Recency}: The policy should address a contemporary challenge, thereby demonstrating the framework's applicability to current real-world problems.
+\end{itemize}
+
+A suitable example is the General Data Protection Regulation (GDPR) \cite{GDPR2016a}. This policy is authoritative (EU law), relevant (containing both static obligations and reactive, time-bound triggers), and recent, making it an ideal subject for analysis. This systematic approach ensures the chosen use case is a meaningful and representative example for the empirical investigation. 
+
+For this study, the case study will be based on implementing GDPR's Data Protection Impact Assessment (DPIA) requirements within the charity sector, as outlined in the paper, Implementing GDPR in the Charity Sector: A Case Study \cite{CharityGDPR}. This specific context is chosen because it requires a high-risk processing assessment for personal data, which involves a mix of static rules and reactive checks. The paper highlights the need for organizations to assess risks to the data subject, a requirement that goes beyond traditional security risk assessments. This complex scenario provides an ideal test for the DCPL framework's ability to operationalize both declarative policy rules and event-driven logic.
+
+\subsubsection{Validating Transpilation Correctness (RQ1.1)}
+The selected use case will serve as the primary basis for validating the correctness of the transpilation process outlined in Section \ref{sec:transpilation}. We will manually analyze the DCPL policies derived from the GDPR requirements within the charity sector context and compare their intended normative meaning with the generated declarative components (e.g., power frames, transformed rules). This qualitative assessment will involve judging whether the transpiled artifacts and ensuring that the operationalization maintains the policy's intended logic.
+
+\subsubsection{Validating Reactive System Behavior (RQ1.2)}
+To evaluate how well the compiled executable describes the logic enforced by the policies, we will develop automated tests based on the use case scenario. We will verify that the generated reactive system correctly identifies these triggers and invokes the appropriate declarative components, leading to the expected outcomes (e.g., completion of duties, detection of violations, granting or exercising of powers) as defined by the policies.
+
+
+\subsection{Performance}
+
+Evaluating the runtime performance focuses on the overhead introduced to other applications the generated code integrates with by the operationalized policies. Following the guidelines of ISO/IEC 25023 ("Measurement of system and software product quality"), we will focus on relative performance rather than absolute values \cite{ISO_25023}. This standard suggests establishing target performance values by comparing measurements against benchmarks derived from:
+\begin{itemize}
+    \item \textbf{Conformance to requirements:} Assessing if the measured value meets specific business or user needs (e.g., "maximum acceptable response time is 0.5 seconds").
+    \item \textbf{Benchmarks:} Comparing performance against similar systems or previous versions.
+    \item \textbf{Time series:} Analyzing performance trends over time to monitor improvements or regressions.
+\end{itemize}
+An example metric from the standard is "Response time adequacy," calculated as the ratio of measured mean response time to a target response time. A value $\leq 1$ indicates acceptable performance, but the target itself must be defined contextually \cite{ISO_25023}.
+
+Given that the framework generates components that often act as middleware coordinating actions and evaluating conditions before interacting with other systems, the added overhead must be minimal. In domains like healthcare, external decision support systems can have average response times of 2-4 seconds \cite{ResponseTimeNDSC}. Therefore, the overhead introduced by our framework's generated components should be significantly smaller. We aim for a response time adequacy target where the added overhead is at least an order of magnitude less than the external system's average response time, suggesting a target overhead of approximately 300 milliseconds or less for actions involving such external calls.

@@ -1,0 +1,269 @@
+
+%%%%%% OLD SECTION %%%%%%%
+
+This chapter presents the empirical results of the framework's evaluation, addressing the research questions regarding operationalization effectiveness (RQ1) by looking at how well the system enforces the policies and its performance. First, we detail the application of the framework to a representative use case in the healthcare domain (MedCare), demonstrating how the DCPL policy language captures complex GDPR requirements and how the provided solution operationalizes them into testable software artifacts. Second, we report on the performance benchmarks, comparing the overhead introduced by our middleware implementation against a baseline, RuleKeeper \cite{ferreira2023rulekeeper}.
+
+\section{Scenario-Based Testing}
+
+To validate the expressive power of the framework (RQ1.1), we selected a scenario involving a private healthcare clinic and how data is shared within GDPR \cite{GDPR2016a}, "MedCare" \cite{CharityGDPR}. This use case was derived from official GDPR examples \cite{GDPRExample} and imposes strict requirements on data protection due to the processing of sensitive personal data, including medical histories and health records.
+
+\section*{Scenario Description}
+
+MedCare offers medical consultations and diagnostic services. The processing of patient data is governed by the following key activities and associated GDPR considerations:
+
+\begin{itemize}
+
+    \item \textbf{Patient Registration \& History Collection:}  
+    New patients provide contact details and medical history.
+    \begin{itemize}
+        \item \textbf{Power:} The patient holds the power to register and provide explicit consent, which triggers the dataProcessing compound state (\textit{GDPR Art. 6(1)(a)}).
+        \item \textbf{Duty:} Within the processing state, MedCare holds a duty toward the patient (counterparty) to provide a privacy notice; failure to do so constitutes a violation via \#nonInformativeNotice (\textit{GDPR Art. 13}).
+    \end{itemize}
+
+    \item \textbf{Appointment Scheduling:}  
+    An online system handles scheduling and SMS/email reminders.
+    \begin{itemize}
+        \item \textbf{Power:} The patient holds the power to opt-in to reminders, enabling the remindersProcessing state (\textit{GDPR Art. 7}).
+        \item \textbf{Duty:} MedCare has a duty to send reminders compliantly; a violation is triggered by \#unauthorizedMarketing, enforcing purpose limitation (\textit{GDPR Art. 5(1)(b)}).
+    \end{itemize}
+
+    \item \textbf{Storage \& Minimization:}  
+    Records are stored in an Electronic Medical Record (EMR) system.
+    \begin{itemize}
+        \item \textbf{Duty:} MedCare owes a duty to the patient to implement data minimization; \#excessiveDataCollection is explicitly defined as the violation event (\textit{GDPR Art. 5(1)(c)}).
+    \end{itemize}
+
+    \item \textbf{Third-Party Sharing:}  
+    Data may be shared with insurance providers or specialists.
+    \begin{itemize}
+        \item \textbf{Power:} MedCare holds the power to share data, which transitions the state to sharedPatientData (\textit{GDPR Art. 6}).
+        \item \textbf{Duty:} Once shared, third parties hold a duty toward MedCare to comply with the Data Processing Agreement (DPA) (\textit{GDPR Art. 28}).
+    \end{itemize}
+
+    \item \textbf{Rights of the Data Subject:}  
+    Patients may request access or deletion of records.
+    \begin{itemize}
+        \item \textbf{Duty:} The patient's power to request access (\textit{GDPR Art. 15}) creates a consequent duty for MedCare to respond.
+        \item \textbf{Duty Violation:} This duty is violated if the response time exceeds the one-month temporal constraint (\textit{GDPR Art. 12(3)}).
+        \item \textbf{Powe:} The patient holds the power to withdraw consent, which removes (minus) the dataProcessing state (\textit{GDPR Art. 7(3)}).
+    \end{itemize}
+
+\end{itemize}
+
+The activities regading data processing are then transpiled into end to end tests that are described by the following test-case matrix:
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}p{5cm}|>{\raggedright\arraybackslash}p{3cm}|c|}
+\hline
+\textbf{Test ID} & \textbf{Test Description} & \textbf{Test Objective} & \textbf{Status} \\
+\hline
+\endfirsthead
+
+\multicolumn{4}{c}%
+{\tablename\ \thetable\ -- \textit{Continued from previous page}} \\
+\hline
+\textbf{Test ID} & \textbf{Test Description} & \textbf{Test Objective} & \textbf{Status} \\
+\hline
+\endhead
+
+\hline \multicolumn{4}{r}{\textit{Continued on next page}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
+\multicolumn{4}{|l|}{\textbf{Feature: Patient Registration \& Enrollment}} \\
+\hline
+
+\texttt{TC-REG-01} & 
+Patient executes \texttt{\#register}. System creates \texttt{enrolledPatient} entity and assigns unique ID. & 
+Verify Power-based transition from \texttt{patient} to \texttt{enrolledPatient}. & 
+\textbf{PASS} \\
+\hline
+
+\texttt{TC-CONS-02} & 
+\texttt{enrolledPatient} executes \texttt{\#giveExplicitConsent}. System triggers \texttt{plus: dataProcessing} state. & 
+Validate state transition into the core processing compound via explicit Power. & 
+\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\textbf{Feature: Normative Duty Fulfillment}} \\
+\hline
+
+\texttt{TC-DUTY-01} & 
+MedCare executes \texttt{\#providePrivacyNotice} within \texttt{dataProcessing} context. & 
+Verify fulfillment of the Duty toward the counterparty (GDPR Art. 13). & 
+\textbf{PASS} \\
+\hline
+
+\texttt{TC-MIN-02} & 
+System evaluates data intake against \texttt{\#implementDataMinimization}. No violation detected for minimal records. & 
+Validate monitoring of the Data Minimization Duty & 
+\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\textbf{Feature: Third-Party Sharing}} \\
+\hline
+
+\texttt{TC-SHR-01} & 
+MedCare executes \texttt{\#shareWithThirdParties}. Third parties become holders of the \texttt{\#complyWithDPA} Duty. & 
+Verify state transition to \texttt{sharedPatientData} and propagation of Duties. & 
+\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\textbf{Feature: Rights of the Data Subject (Reactive Violations)}} \\
+\hline
+
+\texttt{TC-REA-01} & 
+Patient executes \texttt{\#requestAccess}. System creates a pending Duty for MedCare with a 1-month deadline. & 
+Validate Power-to-Duty induction for Subject Access Requests (Art. 15). & 
+\textbf{PASS} \\
+\hline
+
+\texttt{TC-REA-02} & 
+System detects \texttt{DateTime.Now > requestDate.AddMonths(1)} for an open request. Triggers violation exception. & 
+Confirm detection of time-bound reactive violations (Art. 12(3)). & 
+\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\textbf{Feature: Consent Withdrawal (State Removal)}} \\
+\hline
+
+\texttt{TC-WTH-01} & 
+Patient executes \texttt{\#withdrawConsent}. System executes \texttt{minus: dataProcessing}. Two months later, system creates violation for an old Access Request. & 
+\textbf{Logical Consistency:} Ensure obligations are voided when the parent compound is removed. & 
+\textbf{FAIL} \\
+\hline
+
+\caption{End-to-End Test Case Matrix for MedCare Scenario}
+\label{tab:test-matrix}
+\end{longtable}
+
+The evaluation of the MedCare scenario confirms the framework's ability to enforce normative specifications. Test cases TC-REG-01 and TC-REG-02 demonstrate that the interpreter accurately handles patient enrollment and concurrent registrations, correctly mapping the exercise of powers to the creation of the enrolledPatient entity.
+
+Regarding compliance monitoring, the framework effectively identifies GDPR time based violations via its background evaluator service. Results from TC-VD-01 through TC-VD-05 indicate that the system successfully detects reactive violations—such as overdue access requests exceeding the one-month threshold—and persists these as d3violated entities.
+
+However, testing revealed a specific implementation limitation regarding the lifecycle of nested obligations during state removal. In TC-WTH-01, the exercise of a minus operation on the dataProcessing compound via consent withdrawal fails to recursively void internal duties. Consequently, the system continues to evaluate "orphaned" obligations from a terminated context, leading to logically inconsistent violation detections. This issue is limitation of the current prototype and can be fixed in the code generation part of the framework.
+
+
+\subsection{Experimental Settings}
+
+To validate the transpiled policies (RQ1.1) and the reactive system's state transitions (RQ1.2), we employed automated end-to-end (E2E) testing. Specifically, the manually developed tests—authored using Cypress and Gherkin—were integrated into the source code generated from the DCPL JSON specification. This integration ensured that the test suite aligned with the generated namespace structure and system architecture. Manual changes to the namespace are needed to ensure that the .NET test suite can properly build and run. 
+
+The use of Gherkin \cite{GherkinDocs} allows for behavior-driven development (BDD) \cite{bruschi2019behaviorgherkin} where test cases directly mirror the user requirements. The successful execution of these tests confirms that the generated middleware enforces the policy logic—blocking unauthorized actions and enabling authorized ones based on the current state (e.g., empowering actors that enforce the violations to perform actions).
+
+A sample of the test specification used to validate the Patient Registration and possible violations flow is shown below:
+
+\begin{verbatim}
+    @patient-registration
+Feature: Patient Registration
+  As a healthcare system
+  I want patients to be able to register
+  So that they can be enrolled and tracked in the DOI system
+
+  @patient-enrollment
+  Scenario: Patient can register successfully and data can be shared when consent exists
+    Given I am a new patient
+    When I register with name "John Doe"
+    Then the registration should be successful
+    And I should receive a patient ID
+    And an enrolled patient entity should be created
+    When the patient "John Doe" gives explicit consent
+    Then MedCare "Hospital A" should have the power to share patient data
+
+  @patient-enrollment
+  Scenario: Multiple patients can register
+    Given I am a new patient
+    When I register with name "Alice Smith"
+    Then the registration should be successful
+    And I should receive a patient ID
+    When I register another patient with name "Bob Johnson"
+    Then the registration should be successful
+    And I should receive a different patient ID
+    And enrolled patient entities should exist for both patients
+\end{verbatim}
+
+
+\section{Performance}
+
+To evaluate the runtime performance of the framework, we benchmarked our solution against RuleKeeper \cite{ferreira2023rulekeeper}, a state-of-the-art middleware solution for GDPR compliance (presented at the 2023 IEEE Symposium on Security and Privacy).
+
+RuleKeeper operates as a policy enforcement middleware that intercepts requests to automatically detect and prevent GDPR violations. It uses a domain-specific language to specify privacy policies and employs a "sticky banner" mechanism for real-time consent management.
+
+This architecture is highly comparable to our proposed framework, as both systems:
+
+\begin{itemize}
+    \item Generate executable components from a JSON/DSL specification.
+    \item Act as middleware, intercepting requests to enforce access control and consent validation before reaching the business logic.
+\end{itemize}
+
+\subsection{Running the experiment}
+
+The performance evaluation measured the overhead introduced by the policy enforcement middleware. We established a testing environment to compare the response times of a baseline application (Webus, provided in their GitHub repo). Webus is a ticket management system used as an example for RuleKeeper. The application provides a representative set of data-intensive features through several key endpoints: the ticket management module allows users to browse bus schedules (/tickets/schedules), purchase tickets by providing personal and financial information (/tickets/buy\_ticket), and retrieve purchase history (/tickets/purchase\_history). Additionally, it includes a newsletter management system for handling subscriptions (/newsletter/subscribe). The response times were compared under two conditions in order to determine the overhead:
+
+\begin{itemize}
+    \item No middleware: Direct access to the application endpoints
+    \item With Middleware: The application protected by RuleKeeper
+\end{itemize}
+
+For the system we created there is no way to specify yet how to connect to another service as it was created to show how policies can be implemented. In order to simulate an external workload from a service such as Webus, we added a synthetic workload with a timeout on the actions, on top of the middleware logic which we measured as the baseline \ref{fig:dotnet_baseline_performance}. The timeout value was chosen as the average of the Webus application with no middleware.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/dotnet_baseline_performance.png}
+    \caption{.NET Baseline endpoint performance}
+    \label{fig:dotnet_baseline_performance}
+\end{figure}
+
+All benchmarks were conducted on a machine running Windows 11, equipped with a 4-core CPU and 16GB of RAM.
+
+Experimental Setup:
+
+\begin{itemize}
+    \item Application: The "Webus" example application provided by the RuleKeeper repository \cite{rulekeepergithub}, running on Node.js with a MongoDB backend (deployed via Docker)
+    \item Measurement Tool: hyperfine was used to benchmark the HTTP endpoints via curl. We configured a warm-up of 3 runs followed by 10 measured runs per endpoint
+    \item DCPL Simulation: To simulate the integration of DCPL into the middleware chain, we implemented an awaiter in the action execution logic. The wait time was calibrated to the median response time of the Webus application, simulating the latency of a real-world system under load
+    \item Data Volume: Initial tests were conducted with minimal data (1 entry per table) to isolate the middleware processing overhead from database query latency. Later test cases used 1 million and 10 million entries.
+\end{itemize}
+
+\subsection{Execution of the operationalized policies and results}
+
+To ensure a fair comparison, we defined a set of equivalent policies for the benchmark that cover the endpoints Webus exposes:
+
+\begin{verbatim}
+[
+  { "position": "power", "holder": "webusUser", "action": "#seeSchedules" },
+  { "position": "power", "holder": "webusUser", "action": "#buy_ticket" },
+  { "position": "power", "holder": "webusUser", "action": "#subscribe" },
+  { "position": "power", "holder": "webusUser", "action": "#seePurchaseHistory" }
+]
+\end{verbatim}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/rulekeeper_middleware_overhead_comparison.png}
+    \caption{RuleKeeper middleware overhead}
+    \label{fig:rulekeeper_middleware_overhead_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/middleware_overhead_comparison.png}
+    \caption{DCPL .NET middleware overhead}
+    \label{fig:middleware_overhead_comparison}
+\end{figure}
+
+The benchmarking revealed the following key observations:
+
+\begin{itemize}
+    \item Baseline Overhead: With minimal data load, RuleKeeper introduces an average overhead of approximately 3ms \ref{fig:rulekeeper_middleware_overhead_comparison}, very similar to the one introduced by DCPL to the .NET implementation \ref{fig:middleware_overhead_comparison}.
+    \item Architectural Differences: RuleKeeper's loads a generated data.json policy specification into an in-memory hash table. This results in $O(1)$ lookup performance with $O(n)$ space complexity. Conversely, the DCPL implementation generates policies into executable code, but relies on a reactive state stored in a database to track temporal obligations (e.g., deadlines) and complex state transitions.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/database_scaling_impact.png}
+    \caption{DCPL Middleware Entity Scaling Impact}
+    \label{fig:database_scaling_impact}
+\end{figure}
+
+We further tested scalability by increasing the number of users in the system to a million and then 10 million. For RuleKeeper performance remained constant ($O(1)$) as expected for in-memory lookups. For DCPL implementation performance also remained stable \ref{fig:database_scaling_impact}. The database queries used to resolve state did not degrade significantly with the increased row count, indicating that the overhead is dominated by the fixed cost of the potential database round-trip rather than the complexity of the query itself. Significantly higher entries might have a higher impact on the performance of the application.

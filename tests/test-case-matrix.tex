@@ -1,0 +1,232 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf-8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{colortbl}
+
+\title{End-to-End Test Case Matrix\\DCPL Interpreter v2}
+\author{DOI Application - GDPR Compliance Testing}
+\date{January 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Executive Summary}
+
+This test case matrix documents the end-to-end behavioral tests for the DCPL Interpreter v2 system, focusing on GDPR compliance, patient registration, and violation detection mechanisms. A critical bug has been identified in test case \texttt{TC-CW-01}, revealing a logical inconsistency in the violation detection system when obligations exist without their parent context.
+
+\section{Test Overview}
+
+\subsection{Test Distribution}
+\begin{itemize}
+    \item \textbf{Total Test Cases:} 8
+    \item \textbf{Passing:} 7 (87.5\%)
+    \item \textbf{Failing:} 1 (12.5\%)
+    \item \textbf{Test Categories:} Patient Registration, Violation Detection, Consent Withdrawal
+\end{itemize}
+
+\subsection{Identified Bug}
+The failing test (\texttt{TC-CW-01}) exposes a fundamental architectural issue: the \texttt{ViolationEvaluatorService} creates violations for obligations (e.g., \texttt{RespondAccessRequest}) that no longer exist within their logical context after the parent \texttt{dataProcessing} compound has been removed via consent withdrawal. This represents a violation occurring in a \textbf{non-existent context} --- a logical impossibility that indicates incomplete lifecycle management.
+
+\section{Test Case Matrix}
+
+\begin{longtable}{|>{\raggedright\arraybackslash}p{2cm}|>{\raggedright\arraybackslash}p{5cm}|>{\raggedright\arraybackslash}p{3cm}|c|}
+\hline
+\rowcolor{gray!30}
+\textbf{Test ID} & \textbf{Test Description} & \textbf{Test Objective} & \textbf{Status} \\
+\hline
+\endfirsthead
+
+\multicolumn{4}{c}%
+{\tablename\ \thetable\ -- \textit{Continued from previous page}} \\
+\hline
+\rowcolor{gray!30}
+\textbf{Test ID} & \textbf{Test Description} & \textbf{Test Objective} & \textbf{Status} \\
+\hline
+\endhead
+
+\hline \multicolumn{4}{r}{\textit{Continued on next page}} \\
+\endfoot
+
+\hline
+\endlastfoot
+
+\multicolumn{4}{|l|}{\cellcolor{blue!10}\textbf{Feature: Patient Registration}} \\
+\hline
+
+\texttt{TC-PR-01} & 
+Single patient registration with name "John Doe". System creates enrolled patient entity and returns unique patient ID. & 
+Verify basic patient enrollment functionality and entity creation. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\texttt{TC-PR-02} & 
+Multiple patient registration ("Alice Smith" and "Bob Johnson"). System assigns different IDs and creates separate enrolled entities for each patient. & 
+Verify system can handle concurrent patient enrollments with unique identification. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\cellcolor{blue!10}\textbf{Feature: GDPR Violation Detection}} \\
+\hline
+
+\texttt{TC-VD-01} & 
+ViolationEvaluatorService background service runs periodically (every 1 second). Verify service activity appears in application logs. & 
+Validate that the violation detection background service is operational and executing on schedule. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\texttt{TC-VD-02} & 
+Detect access request response deadline violation when request is 2 months old and unresponded. ViolationException should be logged and reactive consequences executed. & 
+Verify reactive violation detection for GDPR Article 15 compliance (access request deadline: 1 month). & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\texttt{TC-VD-03} & 
+Violation detection creates D3violated entities with "ReactiveGenerated" names in database when overdue access request exists. & 
+Confirm that detected violations are persisted as entities and can be tracked/audited. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\texttt{TC-VD-04} & 
+Application health endpoint reports healthy status while violations are being detected. API remains responsive and background service continues running. & 
+Ensure violation detection does not degrade application performance or availability. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\texttt{TC-VD-05} & 
+ViolationEvaluatorService handles exceptions gracefully. Service logs violations, continues running, and application does not crash. & 
+Validate error handling and service resilience during violation processing. & 
+\cellcolor{green!20}\textbf{PASS} \\
+\hline
+
+\multicolumn{4}{|l|}{\cellcolor{blue!10}\textbf{Feature: Consent Withdrawal Impact on Violations}} \\
+\hline
+
+\texttt{TC-CW-01} & 
+Patient "Jane Doe" makes access request, then withdraws consent. Two months pass from original request date. System should NOT create d3violated violation because withdrawConsent removes dataProcessing compound and all nested obligations cease to exist. & 
+Verify that violations are not created for obligations within a removed context (consent withdrawal voids all pending obligations). & 
+\cellcolor{red!20}\textbf{FAIL} \\
+\hline
+
+\caption{End-to-End Test Case Matrix for DCPL Interpreter v2}
+\label{tab:test-matrix}
+\end{longtable}
+
+\section{Detailed Analysis}
+
+\subsection{Test Category Breakdown}
+
+\subsubsection{Patient Registration (TC-PR-*)}
+\textbf{Purpose:} Validate core patient enrollment functionality.
+
+\textbf{Results:} All tests pass (2/2). The system correctly:
+\begin{itemize}
+    \item Creates enrolled patient entities
+    \item Assigns unique patient IDs
+    \item Handles multiple registrations independently
+\end{itemize}
+
+\subsubsection{GDPR Violation Detection (TC-VD-*)}
+\textbf{Purpose:} Verify automated GDPR compliance monitoring.
+
+\textbf{Results:} All tests pass (5/5). The ViolationEvaluatorService correctly:
+\begin{itemize}
+    \item Runs as a background service on schedule
+    \item Detects access request deadline violations (1-month threshold)
+    \item Creates persistent violation entities
+    \item Maintains application health during operation
+    \item Handles exceptions without crashing
+\end{itemize}
+
+\subsubsection{Consent Withdrawal Impact (TC-CW-*)}
+\textbf{Purpose:} Test data processing lifecycle and obligation voiding.
+
+\textbf{Results:} \textcolor{red}{\textbf{Test fails (0/1)}}. This reveals the core architectural bug.
+
+\subsection{Root Cause Analysis: TC-CW-01 Failure}
+
+\subsubsection{The Bug}
+The \texttt{ViolationEvaluatorService} (or \texttt{ReactiveEvaluatorService}) queries all \texttt{RespondAccessRequest} entities and evaluates the reactive condition:
+
+\begin{verbatim}
+DateTime.Now > RespondAccessRequest.Created.AddMonths(1)
+\end{verbatim}
+
+When this condition is true, it creates a \texttt{d3violated} violation entity. However, the service \textbf{does not verify that the parent \texttt{dataProcessing} compound still exists} before creating the violation.
+
+\subsubsection{Logical Inconsistency}
+When a patient executes \texttt{withdrawConsent}:
+\begin{enumerate}
+    \item The \texttt{dataProcessing} compound is removed
+    \item All nested obligations (including \texttt{RespondAccessRequest}) \textbf{logically cease to exist}
+    \item However, orphaned \texttt{RespondAccessRequest} entities may remain in the database
+\end{enumerate}
+
+The ViolationEvaluatorService then creates violations for these orphaned obligations, resulting in:
+\begin{quote}
+\textit{A violation in a context that no longer exists --- a logical impossibility}
+\end{quote}
+
+\subsubsection{Expected vs. Actual Behavior}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|p{6cm}|p{6cm}|}
+\hline
+\rowcolor{gray!30}
+\textbf{Expected Behavior} & \textbf{Actual Behavior} \\
+\hline
+When consent is withdrawn, all pending obligations within the \texttt{dataProcessing} compound are voided. & Obligations remain in database as orphaned entities. \\
+\hline
+Reactive violation checker skips obligations whose parent context has been removed. & Reactive checker evaluates all obligations regardless of parent context existence. \\
+\hline
+NO \texttt{d3violated} violation is created after consent withdrawal. & \texttt{d3violated} violation IS created, violating logical consistency. \\
+\hline
+Access request is considered void due to withdrawal. & Access request is still evaluated for violation conditions. \\
+\hline
+\end{tabular}
+\caption{Expected vs. Actual Behavior for TC-CW-01}
+\end{table}
+
+\subsection{Implementation Gap}
+
+This bug reveals an \textbf{incomplete obligation lifecycle management}:
+
+\begin{itemize}
+    \item \textbf{Creation:} Obligations are properly created within \texttt{dataProcessing} compounds ✓
+    \item \textbf{Monitoring:} Reactive conditions are checked regularly ✓
+    \item \textbf{Violation Detection:} Violations are detected and logged ✓
+    \item \textbf{Context Removal:} \textcolor{red}{Obligations are not properly voided when parent context is removed ✗}
+    \item \textbf{Orphan Prevention:} \textcolor{red}{System does not prevent evaluation of contextless obligations ✗}
+\end{itemize}
+
+\section{Recommended Fixes}
+
+\subsection{Option 1: Cascade Deletion}
+When \texttt{withdrawConsent} removes the \texttt{dataProcessing} compound, implement cascade deletion to remove all nested obligations (hard delete).
+
+\subsection{Option 2: Soft Delete with Status}
+Add a \texttt{Status} field to obligation entities. When \texttt{dataProcessing} is removed, mark all nested obligations as \texttt{VOIDED} or \texttt{INVALID}. Modify \texttt{ViolationEvaluatorService} to skip obligations with these statuses.
+
+\subsection{Option 3: Parent Context Validation}
+Before creating a violation, the \texttt{ViolationEvaluatorService} should:
+\begin{enumerate}
+    \item Check if the obligation's parent \texttt{dataProcessing} compound exists
+    \item Only create violations if the parent context is valid
+    \item Optionally clean up orphaned obligations
+\end{enumerate}
+
+\subsection{Option 4: Event-Driven Cleanup}
+Implement an event listener that triggers when \texttt{withdrawConsent} is executed, automatically voiding or removing all dependent obligations.
+
+\section{Conclusion}
+
+The test suite successfully validates most core functionality (87.5\% pass rate). The single failing test (\texttt{TC-CW-01}) is particularly valuable as it exposes a fundamental architectural issue: \textbf{violations should not exist in non-existent contexts}.
+
+This is more than a simple bug --- it represents a conceptual gap in how the system handles the lifecycle of compound data structures and their nested obligations. Addressing this will improve both logical consistency and GDPR compliance accuracy.
+
+\end{document}

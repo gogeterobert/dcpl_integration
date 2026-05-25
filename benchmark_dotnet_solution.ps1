@@ -6,7 +6,7 @@ Write-Host ""
 $iterations = 10
 $solutionPath = "..\compiled_solution\benchmark\src\Web"
 $baseUrl = "http://localhost:5000"
-$baselineMs = 20  # Simulated request logic delay
+$baselineMs = 200  # Simulated request logic delay
 
 $results = @{
     "SeeSchedules" = @()
@@ -273,3 +273,56 @@ $successRate = if ($totalRequests -gt 0) { [Math]::Round(($successfulRequests / 
 Write-Host "`nSuccess Rate: $successfulRequests / $totalRequests ($successRate%)" -ForegroundColor Cyan
 
 Write-Host "`nBenchmark complete!" -ForegroundColor Green
+
+# =============================================================================
+# Export to CSV
+# =============================================================================
+
+Write-Host "`nExporting results to CSV..." -ForegroundColor Yellow
+
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$csvPath = "benchmark_results_$timestamp.csv"
+
+# Create CSV data
+$csvData = @()
+
+# Add per-endpoint data
+foreach ($testName in $testNames) {
+    $stats = Calculate-Stats -Values $results[$testName]
+    $overheadMs = [Math]::Round($stats.Avg - $baselineMs, 2)
+    $overheadPercent = if ($baselineMs -gt 0) { [Math]::Round(($overheadMs / $baselineMs) * 100, 2) } else { 0 }
+    
+    $csvData += [PSCustomObject]@{
+        Endpoint = $testName
+        MinMs = $stats.Min
+        MaxMs = $stats.Max
+        AvgMs = $stats.Avg
+        MedianMs = $stats.Median
+        BaselineMs = $baselineMs
+        OverheadMs = $overheadMs
+        OverheadPercent = $overheadPercent
+        Iterations = $iterations
+    }
+}
+
+# Add overall statistics
+$overallStats = Calculate-Stats -Values $allTimes
+$overallOverheadMs = [Math]::Round($overallStats.Avg - $baselineMs, 2)
+$overallOverheadPercent = if ($baselineMs -gt 0) { [Math]::Round(($overallOverheadMs / $baselineMs) * 100, 2) } else { 0 }
+
+$csvData += [PSCustomObject]@{
+    Endpoint = "OVERALL"
+    MinMs = $overallStats.Min
+    MaxMs = $overallStats.Max
+    AvgMs = $overallStats.Avg
+    MedianMs = $overallStats.Median
+    BaselineMs = $baselineMs
+    OverheadMs = $overallOverheadMs
+    OverheadPercent = $overallOverheadPercent
+    Iterations = $totalRequests
+}
+
+# Export to CSV
+$csvData | Export-Csv -Path $csvPath -NoTypeInformation
+
+Write-Host "Results exported to: $csvPath" -ForegroundColor Green
